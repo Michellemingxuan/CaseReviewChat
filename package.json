@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-"preview": "vite preview",
+    "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "mock": "tsx src/mockServer.ts"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -18,11 +19,16 @@
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "jsdom": "^25.0.1",
+    "tsx": "^4.21.0",
     "typescript": "~5.6.0",
     "vite": "^6.0.0",
     "vitest": "^2.1.9"

@@ -4,6 +4,14 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
   // @ts-expect-error vitest augments vite UserConfig at runtime; type mismatch due to nested vite version
   test: {
     environment: 'jsdom',
