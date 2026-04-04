@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fetchCaseList, postMessage, postRewind } from '../api'
+import { fetchCaseList, postMessage, postRewind, openSSE } from '../api'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -44,5 +44,20 @@ describe('postRewind', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messageId: 'm1' }),
     })
+  })
+})
+
+describe('openSSE', () => {
+  it('constructs EventSource with correct URL', () => {
+    const mockEs = { close: vi.fn(), url: '/api/cases/C-001/stream' }
+    const MockEventSource = vi.fn(() => mockEs)
+    vi.stubGlobal('EventSource', MockEventSource)
+
+    const es = openSSE('C-001')
+
+    expect(MockEventSource).toHaveBeenCalledWith('/api/cases/C-001/stream')
+    expect(es).toBe(mockEs)
+
+    vi.unstubAllGlobals()
   })
 })
