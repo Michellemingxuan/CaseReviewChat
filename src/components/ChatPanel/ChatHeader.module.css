@@ -33,12 +33,12 @@
 }
 
 .connected {
-  background: #f0fdf4;
+  background: rgba(34, 197, 94, 0.1);
   color: #16a34a;
 }
 
 .disconnected {
-  background: #fef9ec;
+  background: rgba(202, 138, 4, 0.1);
   color: #ca8a04;
 }
 

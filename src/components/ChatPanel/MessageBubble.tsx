@@ -25,17 +25,8 @@ export function MessageBubble({ message, onRewind }: Props) {
     >
       <div className={styles.label}>{isAgent ? 'Agent' : 'Reviewer'}</div>
       <div className={styles.row}>
-        {isAgent && hovered && (
-          <button
-            className={styles.rewindBtn}
-            onClick={() => setShowConfirm(true)}
-            title="Rewind to this point"
-          >
-            ↩
-          </button>
-        )}
         <div className={styles.bubble}>{message.text}</div>
-        {!isAgent && hovered && (
+        {hovered && (
           <button
             className={styles.rewindBtn}
             onClick={() => setShowConfirm(true)}
