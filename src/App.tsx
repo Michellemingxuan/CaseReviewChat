@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useStore } from './store'
 import { fetchCaseList } from './api'
 import { Sidebar } from './components/Sidebar/Sidebar'
+import { ChatPanel } from './components/ChatPanel/ChatPanel'
 import './index.css'
 
 function App() {
@@ -27,9 +28,7 @@ function App() {
         unread={unread}
         onSelect={setActiveCase}
       />
-      <div style={{ flex: 1, background: 'var(--bg-white)' }}>
-        {/* ChatPanel — Task 6 */}
-      </div>
+      <ChatPanel />
     </div>
   )
 }

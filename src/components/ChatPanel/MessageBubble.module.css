@@ -1,0 +1,117 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 72%;
+  position: relative;
+}
+
+.agent { align-self: flex-start; }
+.reviewer { align-self: flex-end; }
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.reviewer .label { text-align: right; }
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.reviewer .row { flex-direction: row-reverse; }
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.agent .bubble {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 2px 12px 12px 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.reviewer .bubble {
+  background: var(--amex-blue);
+  color: white;
+  border-radius: 12px 12px 2px 12px;
+}
+
+.rewindBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.rewindBtn:hover { color: var(--amex-blue); background: rgba(1,111,208,0.08); }
+
+.time {
+  font-size: 10px;
+  color: #bbb;
+  margin-top: 4px;
+}
+
+.reviewer .time { text-align: right; }
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 10;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  width: 260px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.popoverLeft { left: 0; }
+.popoverRight { right: 0; }
+
+.popoverActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.confirmBtn {
+  padding: 5px 12px;
+  background: var(--amex-blue);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.cancelBtn {
+  padding: 5px 12px;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
