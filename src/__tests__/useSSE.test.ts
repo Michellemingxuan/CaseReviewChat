@@ -9,6 +9,7 @@ class MockEventSource {
   url: string
   onmessage: ((e: MessageEvent) => void) | null = null
   onerror: (() => void) | null = null
+  onopen: (() => void) | null = null
   close = vi.fn()
   static instances: MockEventSource[] = []
 
@@ -19,6 +20,14 @@ class MockEventSource {
 
   emit(data: Message) {
     this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent)
+  }
+
+  emitRaw(raw: string) {
+    this.onmessage?.({ data: raw } as MessageEvent)
+  }
+
+  open() {
+    this.onopen?.()
   }
 }
 
@@ -41,11 +50,16 @@ describe('useSSE', () => {
     expect(MockEventSource.instances[0].url).toBe('/api/cases/C-001/stream')
   })
 
-  it('sets sseStatus to connected after first message', () => {
-    const { } = renderHook(() => useSSE('C-001'))
+  it('does nothing when caseId is null', () => {
+    renderHook(() => useSSE(null))
+    expect(MockEventSource.instances).toHaveLength(0)
+    expect(useStore.getState().sseStatus).toBe('disconnected')
+  })
+
+  it('sets sseStatus to connected when connection opens', () => {
+    renderHook(() => useSSE('C-001'))
     const es = MockEventSource.instances[0]
-    const msg: Message = { id: 'm1', role: 'agent', text: 'hello', timestamp: 1 }
-    act(() => { es.emit(msg) })
+    act(() => { es.open() })
     expect(useStore.getState().sseStatus).toBe('connected')
   })
 
@@ -56,6 +70,15 @@ describe('useSSE', () => {
     act(() => { es.emit(msg) })
     expect(useStore.getState().threads['C-001']).toHaveLength(1)
     expect(useStore.getState().threads['C-001'][0].text).toBe('hello')
+  })
+
+  it('sets sseStatus to disconnected on parse error', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => { es.open() })
+    expect(useStore.getState().sseStatus).toBe('connected')
+    act(() => { es.emitRaw('not-valid-json') })
+    expect(useStore.getState().sseStatus).toBe('disconnected')
   })
 
   it('closes SSE connection on unmount', () => {
