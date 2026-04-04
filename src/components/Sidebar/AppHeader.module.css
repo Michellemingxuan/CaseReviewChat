@@ -1,0 +1,40 @@
+.header {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-live);
+  box-shadow: 0 0 6px var(--green-live);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.badgeText {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.brand {
+  margin-top: 10px;
+  font-family: var(--font-brand);
+  font-size: 15px;
+  color: white;
+  letter-spacing: 0.01em;
+}
