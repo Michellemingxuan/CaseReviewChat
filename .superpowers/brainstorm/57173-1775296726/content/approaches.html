@@ -1,0 +1,48 @@
+<h2>Three Architecture Approaches</h2>
+<p class="subtitle">Each handles state, routing, and real-time differently — pick the one that matches how you'll use this tool</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Lightweight — React + Context</h3>
+      <p>Single page, no routing. Case threads live in React context (in-memory). Selecting a case swaps the chat panel. SSE connection opens per case on selection.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Minimal setup, fast to build</li><li>No extra dependencies</li><li>Simple mental model</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Conversations reset on page refresh</li><li>Can't deep-link to a case</li></ul></div>
+      </div>
+      <p style="margin-top:8px;font-size:0.85em;color:#666;">Best if: this is an internal tool, sessions are short, and you don't need bookmarkable URLs</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Persistent — React + Zustand + localStorage</h3>
+      <p>Single page with state manager (Zustand). Message history persists in localStorage per case ID. SSE reconnects automatically and replays missed messages via a sequence ID.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Conversations survive refresh</li><li>Reviewer can pick up where they left off</li><li>Lightweight (Zustand is tiny)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Still no deep-linkable URLs</li><li>localStorage has size limits for long threads</li></ul></div>
+      </div>
+      <p style="margin-top:8px;font-size:0.85em;color:#666;">Best if: reviewers work multiple cases over hours and need session continuity</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Routed — React Router + Zustand</h3>
+      <p>Each case gets its own URL (<code>/case/C-7891</code>). React Router handles navigation. Zustand manages state. Deep-linkable, browser-history-aware.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Share/bookmark specific case chats</li><li>Browser back/forward works naturally</li><li>Cleanest for multi-reviewer teams</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More setup (router config, URL params)</li><li>Slightly more complexity</li></ul></div>
+      </div>
+      <p style="margin-top:8px;font-size:0.85em;color:#666;">Best if: multiple reviewers might share links or this integrates with other internal tools</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;padding:16px;background:#f0f4ff;border-radius:8px;border-left:4px solid #016FD0;">
+  <p class="label">My recommendation</p>
+  <p><strong>B (Persistent)</strong> — For a case review tool, losing conversation history on refresh is painful. Zustand + localStorage solves that with minimal overhead. If you later need routing, it's easy to add React Router on top.</p>
+</div>

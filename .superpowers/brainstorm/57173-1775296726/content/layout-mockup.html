@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Case Review Chat — Layout Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+  .browser-chrome {
+    width: 100%;
+    max-width: 1100px;
+    background: #e0e3e8;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+  .browser-bar {
+    background: #d0d3d8;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .browser-dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #28c840; }
+  .browser-url { flex: 1; background: white; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #666; font-family: 'IBM Plex Mono', monospace; }
+
+  /* App shell */
+  .app {
+    display: flex;
+    height: 620px;
+    background: #fafafa;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: #00175A;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .agentic-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .badge-text {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+  }
+  .brand {
+    margin-top: 10px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    color: white;
+    letter-spacing: 0.01em;
+  }
+
+  .case-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .section-label {
+    padding: 14px 16px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+  }
+  .case-item {
+    padding: 9px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .case-item:hover { background: rgba(255,255,255,0.06); color: white; }
+  .case-item.active {
+    background: rgba(1,111,208,0.25);
+    color: white;
+    border-left-color: #016FD0;
+  }
+  .case-item.has-activity::after {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #016FD0;
+    margin-left: auto;
+  }
+  .section-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 10px 16px;
+  }
+
+  /* Main panel */
+  .main-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+  }
+
+  /* Chat header */
+  .chat-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .case-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: #00175A;
+    letter-spacing: 0.04em;
+  }
+  .case-meta { font-size: 12px; color: #999; margin-top: 2px; }
+  .conn-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #f0f7ff;
+    font-size: 11px; font-weight: 500; color: #016FD0;
+  }
+  .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+
+  /* Messages */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: #fafafa;
+  }
+  .msg { display: flex; flex-direction: column; max-width: 72%; }
+  .msg.agent { align-self: flex-start; }
+  .msg.reviewer { align-self: flex-end; }
+
+  .msg-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: #999;
+  }
+  .msg.reviewer .msg-label { text-align: right; }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .msg.agent .msg-bubble {
+    background: white;
+    border: 1px solid #e8e8e8;
+    color: #1a1a2e;
+    border-radius: 2px 12px 12px 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .msg.reviewer .msg-bubble {
+    background: #016FD0;
+    color: white;
+    border-radius: 12px 12px 2px 12px;
+  }
+  .msg-time { font-size: 10px; color: #bbb; margin-top: 4px; }
+  .msg.reviewer .msg-time { text-align: right; }
+
+  /* Typing indicator */
+  .typing {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid #e8e8e8;
+    border-radius: 2px 12px 12px 12px;
+    width: fit-content;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%; background: #016FD0; opacity: 0.4;
+    animation: bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-5px);opacity:1} }
+
+  /* Input bar */
+  .input-bar {
+    padding: 14px 24px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    background: white;
+  }
+  .input-wrap { flex: 1; }
+  .input-source {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #999; margin-bottom: 6px;
+  }
+  .text-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: #1a1a2e;
+    background: #fafafa;
+    resize: none;
+    outline: none;
+  }
+  .text-input:focus { border-color: #016FD0; background: white; }
+  .send-btn {
+    padding: 10px 20px;
+    background: #016FD0;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    align-self: flex-end;
+  }
+
+  /* Annotation overlays */
+  .annotation {
+    position: relative;
+  }
+  .ann-tag {
+    position: absolute;
+    background: #FFD700;
+    color: #1a1a2e;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+</style>
+</head>
+<body>
+<div style="width:100%;max-width:1100px;">
+  <p style="font-family:'DM Sans',sans-serif;font-size:13px;color:#555;margin-bottom:12px;text-align:center;">Layout mockup — not pixel-perfect, for structure validation only</p>
+
+  <div class="browser-chrome">
+    <div class="browser-bar">
+      <div class="browser-dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <div class="browser-url">localhost:5173 / case-review</div>
+    </div>
+
+    <div class="app">
+      <!-- SIDEBAR -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="agentic-badge">
+            <div class="badge-dot"></div>
+            <span class="badge-text">Agentic System</span>
+          </div>
+          <div class="brand">Case Review</div>
+        </div>
+
+        <div class="case-list">
+          <div class="section-label">Consumer</div>
+          <div class="case-item active">C-7891</div>
+          <div class="case-item has-activity">C-4523</div>
+          <div class="case-item">C-2847</div>
+          <div class="case-item">C-9012</div>
+          <div class="case-item">C-3345</div>
+
+          <div class="section-divider"></div>
+          <div class="section-label">Commercial</div>
+          <div class="case-item">M-1892</div>
+          <div class="case-item">M-5671</div>
+          <div class="case-item">M-3490</div>
+          <div class="case-item">M-8823</div>
+        </div>
+      </div>
+
+      <!-- MAIN PANEL -->
+      <div class="main-panel">
+        <div class="chat-header">
+          <div>
+            <div class="case-id">C-7891</div>
+            <div class="case-meta">Consumer · opened just now</div>
+          </div>
+          <div class="conn-badge">
+            <div class="conn-dot"></div>
+            Live
+          </div>
+        </div>
+
+        <div class="messages">
+          <div class="msg agent">
+            <div class="msg-label">Agent</div>
+            <div class="msg-bubble">I've reviewed case C-7891. Three transactions on 03/28 appear inconsistent with the cardholder's established spend pattern — two at Newark EWR and one in Phoenix, same hour. Would you like me to pull the full 90-day history?</div>
+            <div class="msg-time">9:04 AM</div>
+          </div>
+
+          <div class="msg reviewer">
+            <div class="msg-label">Reviewer</div>
+            <div class="msg-bubble">Yes, pull the full history and cross-reference with any prior disputes.</div>
+            <div class="msg-time">9:05 AM</div>
+          </div>
+
+          <div class="msg agent">
+            <div class="msg-label">Agent</div>
+            <div class="msg-bubble">Found 2 prior disputes in the last 18 months, both resolved in cardholder's favor. 90-day history shows consistent spend in NYC metro. The Phoenix transaction is the outlier — merchant category: hotel, $412.</div>
+            <div class="msg-time">9:05 AM</div>
+          </div>
+
+          <div class="msg reviewer">
+            <div class="msg-label">Reviewer</div>
+            <div class="msg-bubble">Flag the Phoenix charge for escalation.</div>
+            <div class="msg-time">9:06 AM</div>
+          </div>
+
+          <!-- typing indicator -->
+          <div class="msg agent">
+            <div class="msg-label">Agent</div>
+            <div class="typing">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-bar">
+          <div class="input-wrap">
+            <div class="input-source">Reviewer input</div>
+            <textarea class="text-input" rows="1" placeholder="Ask a question about this case…"></textarea>
+          </div>
+          <button class="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div style="margin-top:20px;display:flex;gap:24px;flex-wrap:wrap;font-family:'DM Sans',sans-serif;font-size:12px;color:#555;justify-content:center;">
+    <div style="display:flex;align-items:center;gap:6px;"><div style="width:12px;height:12px;border-radius:50%;background:#22c55e;"></div> Live SSE connection indicator</div>
+    <div style="display:flex;align-items:center;gap:6px;"><div style="width:12px;height:12px;border-radius:50%;background:#016FD0;"></div> Case with unseen agent activity</div>
+    <div style="display:flex;align-items:center;gap:6px;"><div style="width:3px;height:14px;background:#016FD0;border-radius:2px;"></div> Active case (left border)</div>
+    <div style="display:flex;align-items:center;gap:6px;"><div style="width:12px;height:12px;border-radius:6px;background:#016FD0;"></div> Reviewer message</div>
+    <div style="display:flex;align-items:center;gap:6px;"><div style="width:12px;height:12px;border-radius:6px;background:#e8e8e8;border:1px solid #ddd;"></div> Agent message</div>
+  </div>
+</div>
+</body>
+</html>

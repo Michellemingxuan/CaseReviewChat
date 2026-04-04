@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@600&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --amex-navy: #00175A;
+  --amex-blue: #016FD0;
+  --green-live: #22c55e;
+  --bg-app: #fafafa;
+  --bg-white: #ffffff;
+  --border: #e8e8e8;
+  --text-primary: #1a1a2e;
+  --text-muted: #999999;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-body: 'DM Sans', sans-serif;
+  --font-brand: 'Playfair Display', serif;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-body);
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
