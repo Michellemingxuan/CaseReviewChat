@@ -21,7 +21,7 @@ export function MessageBubble({ message, onRewind }: Props) {
     <div
       className={`${styles.wrapper} ${isAgent ? styles.agent : styles.reviewer}`}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setShowConfirm(false) }}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className={styles.label}>{isAgent ? 'Agent' : 'Reviewer'}</div>
       <div className={styles.row}>

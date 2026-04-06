@@ -32,11 +32,11 @@ app.get('/api/cases/:id/stream', (req, res) => {
   // Emit onopen equivalent — signal connection established
   res.write(': connected\n\n')
 
-  setTimeout(() => send(`I'm reviewing case ${id}. How can I help?`), 1000)
+  setTimeout(() => send(`I'm reviewing case ${id}.`), 1000)
 
   const timer = setInterval(() => {
     send(`[${new Date().toLocaleTimeString()}] Agent is monitoring case ${id}...`)
-  }, 15000)
+  }, 60000)
 
   req.on('close', () => clearInterval(timer))
 })
