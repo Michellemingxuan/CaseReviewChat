@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "mock": "tsx src/mockServer.ts"
+    "mock": "./node_modules/.bin/tsx src/mockServer.ts"
   },
   "dependencies": {
     "react": "^19.0.0",

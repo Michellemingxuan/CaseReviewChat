@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import type { Response } from 'express'
 
 const app = express()
 app.use(cors())
@@ -7,11 +8,26 @@ app.use(express.json())
 
 const CASES = ['C-7891', 'C-4523', 'C-2847', 'M-1892', 'M-5671']
 
+// SSE clients per case: caseId -> list of active response streams
+const clients: Record<string, Response[]> = {}
+
+function broadcast(caseId: string, role: 'agent' | 'reviewer', text: string) {
+  const msg = {
+    id: crypto.randomUUID(),
+    role,
+    text,
+    timestamp: Date.now(),
+  }
+  const payload = `event: message\ndata: ${JSON.stringify(msg)}\n\n`
+  for (const res of clients[caseId] ?? []) {
+    res.write(payload)
+  }
+}
+
 app.get('/api/cases', (_req, res) => {
   res.json(CASES)
 })
 
-// SSE: push a mock agent greeting after 1s, then periodic messages every 15s
 app.get('/api/cases/:id/stream', (req, res) => {
   const { id } = req.params
   res.setHeader('Content-Type', 'text/event-stream')
@@ -19,31 +35,28 @@ app.get('/api/cases/:id/stream', (req, res) => {
   res.setHeader('Connection', 'keep-alive')
   res.flushHeaders()
 
-  const send = (text: string) => {
-    const msg = {
-      id: crypto.randomUUID(),
-      role: 'agent',
-      text,
-      timestamp: Date.now(),
-    }
-    res.write(`event: message\ndata: ${JSON.stringify(msg)}\n\n`)
-  }
+  // Register this client
+  if (!clients[id]) clients[id] = []
+  clients[id].push(res)
+  console.log(`[SSE] Client connected to case ${id} (total: ${clients[id].length})`)
 
-  // Emit onopen equivalent — signal connection established
   res.write(': connected\n\n')
 
-  setTimeout(() => send(`I'm reviewing case ${id}.`), 1000)
-
-  const timer = setInterval(() => {
-    send(`[${new Date().toLocaleTimeString()}] Agent is monitoring case ${id}...`)
-  }, 60000)
-
-  req.on('close', () => clearInterval(timer))
+  req.on('close', () => {
+    clients[id] = (clients[id] ?? []).filter((c) => c !== res)
+  })
 })
 
 app.post('/api/cases/:id/message', (req, res) => {
-  console.log(`[${req.params.id}] Reviewer: ${req.body.text}`)
+  const { id } = req.params
+  const { text } = req.body
+  console.log(`[${id}] Reviewer: ${text} | SSE clients: ${(clients[id] ?? []).length}`)
+  broadcast(id, 'reviewer', text)
   res.sendStatus(204)
+  // Fallback reply — replace this with real agentic system call
+  setTimeout(() => {
+    broadcast(id, 'agent', 'The system is under construction.')
+  }, 1500)
 })
 
 app.post('/api/cases/:id/rewind', (req, res) => {

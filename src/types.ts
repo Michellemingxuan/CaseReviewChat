@@ -20,4 +20,5 @@ export type StoreState = {
   rewindThread: (caseId: string, messageId: string) => void
   setSseStatus: (status: SseStatus) => void
   markUnread: (caseId: string) => void
+  clearHistory: () => void
 }

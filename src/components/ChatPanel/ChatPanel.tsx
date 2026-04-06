@@ -11,7 +11,6 @@ export function ChatPanel() {
   const activeCase = useStore((s) => s.activeCase)
   const sseStatus = useStore((s) => s.sseStatus)
   const threads = useStore((s) => s.threads)
-  const appendMessage = useStore((s) => s.appendMessage)
   const rewindThread = useStore((s) => s.rewindThread)
 
   const [showTyping, setShowTyping] = useState(false)
@@ -21,22 +20,18 @@ export function ChatPanel() {
   const messages = activeCase ? (threads[activeCase] ?? []) : []
   const lastMsg = messages[messages.length - 1]
 
-  // Hide typing indicator when agent message arrives
+  // Hide typing indicator when any new message arrives via SSE
   useEffect(() => {
     if (lastMsg?.role === 'agent') {
       setShowTyping(false)
     }
   }, [lastMsg])
 
+  // No optimistic append — all messages (reviewer + agent) come through SSE.
+  // The backend echoes reviewer messages back so both the UI and the
+  // orchestrator see the same unified thread.
   const handleSend = useCallback(async (text: string) => {
     if (!activeCase) return
-    const msg = {
-      id: globalThis.crypto.randomUUID(),
-      role: 'reviewer' as const,
-      text,
-      timestamp: Date.now(),
-    }
-    appendMessage(activeCase, msg)
     setShowTyping(true)
     try {
       await postMessage(activeCase, text)
@@ -44,7 +39,7 @@ export function ChatPanel() {
       console.error('Failed to send message', e)
       setShowTyping(false)
     }
-  }, [activeCase, appendMessage])
+  }, [activeCase])
 
   const handleRewind = useCallback(async (messageId: string) => {
     if (!activeCase) return

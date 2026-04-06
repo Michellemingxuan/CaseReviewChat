@@ -1,5 +1,6 @@
 import { AppHeader } from './AppHeader'
 import { CaseSection } from './CaseSection'
+import { useStore } from '../../store'
 import styles from './Sidebar.module.css'
 
 type Props = {
@@ -11,6 +12,8 @@ type Props = {
 }
 
 export function Sidebar({ consumerCases, commercialCases, activeCase, unread, onSelect }: Props) {
+  const clearHistory = useStore((s) => s.clearHistory)
+
   return (
     <nav className={styles.sidebar}>
       <AppHeader />
@@ -30,6 +33,11 @@ export function Sidebar({ consumerCases, commercialCases, activeCase, unread, on
           unread={unread}
           onSelect={onSelect}
         />
+      </div>
+      <div className={styles.footer}>
+        <button className={styles.clearBtn} onClick={clearHistory}>
+          Clear History
+        </button>
       </div>
     </nav>
   )

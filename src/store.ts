@@ -51,6 +51,9 @@ export const useStore = create<StoreState>()(
           unread.add(caseId)
           return { unread }
         }),
+
+      clearHistory: () =>
+        set({ threads: {}, unread: new Set() }),
     }),
     {
       name: STORAGE_KEY,

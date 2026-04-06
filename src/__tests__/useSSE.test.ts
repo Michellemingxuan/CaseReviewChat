@@ -72,13 +72,14 @@ describe('useSSE', () => {
     expect(useStore.getState().threads['C-001'][0].text).toBe('hello')
   })
 
-  it('sets sseStatus to disconnected on parse error', () => {
+  it('stays connected on parse error (logs but does not disconnect)', () => {
     renderHook(() => useSSE('C-001'))
     const es = MockEventSource.instances[0]
     act(() => { es.open() })
     expect(useStore.getState().sseStatus).toBe('connected')
     act(() => { es.emitRaw('not-valid-json') })
-    expect(useStore.getState().sseStatus).toBe('disconnected')
+    // Parse errors are logged but connection stays open
+    expect(useStore.getState().sseStatus).toBe('connected')
   })
 
   it('closes SSE connection on unmount', () => {
