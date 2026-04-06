@@ -1,10 +1,13 @@
 """
 orchestrator.py
 
-Runs an LLM reviewer (via safechain + ValidChatPromptTemplate) against the
-Case Review Chat agentic backend. The reviewer LLM generates questions,
-posts them to the backend via HTTP, and the agent responds via SSE.
-The React UI shows the full conversation in real-time.
+Runs an LLM reviewer against the Case Review Chat agentic backend.
+The reviewer LLM generates questions, posts them via HTTP, and the agent
+responds via SSE. The React UI shows the full conversation in real-time.
+
+LLM provider is selected via LLM_PROVIDER env var:
+  LLM_PROVIDER=openai    (default) — uses OpenAI API directly
+  LLM_PROVIDER=safechain             — uses internal safechain + ValidChatPromptTemplate
 
 Usage:
     python orchestrator.py [--case CASE_ID] [--turns N] [--backend URL]
@@ -18,19 +21,8 @@ import time
 
 import httpx
 from dotenv import load_dotenv
-load_dotenv()  # loads CONFIG_PATH (and other vars) from .env if present
 
-from safechain import model
-from safechain.prompts import ValidChatPromptTemplate
-
-if not os.environ.get("CONFIG_PATH"):
-    raise EnvironmentError(
-        "CONFIG_PATH environment variable is not set.\n"
-        "Set it to the path of your safechain config YAML, e.g.:\n"
-        "  export CONFIG_PATH=/path/to/safechain_config.yaml\n"
-        "Or create a .env file in this directory with:\n"
-        "  CONFIG_PATH=/path/to/safechain_config.yaml"
-    )
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Config
@@ -39,6 +31,15 @@ if not os.environ.get("CONFIG_PATH"):
 DEFAULT_BACKEND = "http://localhost:3001"
 DEFAULT_CASE_ID = "C-7891"
 DEFAULT_MAX_TURNS = 5
+
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "openai").lower()
+
+SYSTEM_PROMPT = (
+    "You are a professional financial case reviewer at a bank. "
+    "You are interacting with an AI agent that has access to case data. "
+    "Ask one focused, specific question per turn to uncover key facts about the case. "
+    "Keep questions concise. Do not repeat questions already asked."
+)
 
 # ---------------------------------------------------------------------------
 # Load case context (one level up from this file)
@@ -62,28 +63,51 @@ prompt_base = (
 )
 
 # ---------------------------------------------------------------------------
-# LLM + prompt chain
+# LLM chain — provider-specific setup
 # ---------------------------------------------------------------------------
 
-llm = model("3")
+if LLM_PROVIDER == "safechain":
+    if not os.environ.get("CONFIG_PATH"):
+        raise EnvironmentError(
+            "CONFIG_PATH environment variable is not set.\n"
+            "Create a .env file with: CONFIG_PATH=/path/to/safechain_config.yaml"
+        )
+    from safechain import model
+    from safechain.prompts import ValidChatPromptTemplate
 
-reviewer_chain = ValidChatPromptTemplate.from_messages([
-    ("system",
-     "You are a professional financial case reviewer at a bank. "
-     "You are interacting with an AI agent that has access to case data. "
-     "Ask one focused, specific question per turn to uncover key facts about the case. "
-     "Keep questions concise. Do not repeat questions already asked."),
-    ("human", "{prompt_base}"),
-    ("ai", "Sure, what would you like to know about the case?"),
-    ("human", "{history}\n\nAsk your next question:"),
-]) | llm
+    llm = model("3")
+    reviewer_chain = ValidChatPromptTemplate.from_messages([
+        ("system", SYSTEM_PROMPT),
+        ("human", "{prompt_base}"),
+        ("ai", "Sure, what would you like to know about the case?"),
+        ("human", "{history}\n\nAsk your next question:"),
+    ]) | llm
+
+elif LLM_PROVIDER == "openai":
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise EnvironmentError(
+            "OPENAI_API_KEY environment variable is not set.\n"
+            "Create a .env file with: OPENAI_API_KEY=sk-..."
+        )
+    from langchain_openai import ChatOpenAI
+    from langchain_core.prompts import ChatPromptTemplate
+
+    llm = ChatOpenAI(model=os.environ.get("OPENAI_MODEL", "gpt-4o"), temperature=0.3)
+    reviewer_chain = ChatPromptTemplate.from_messages([
+        ("system", SYSTEM_PROMPT),
+        ("human", "{prompt_base}"),
+        ("ai", "Sure, what would you like to know about the case?"),
+        ("human", "{history}\n\nAsk your next question:"),
+    ]) | llm
+
+else:
+    raise ValueError(f"Unknown LLM_PROVIDER: '{LLM_PROVIDER}'. Use 'openai' or 'safechain'.")
 
 # ---------------------------------------------------------------------------
-# Orchestrator
+# Orchestrator helpers
 # ---------------------------------------------------------------------------
 
 def format_history(thread: list[dict]) -> str:
-    """Convert thread to a readable string for the prompt."""
     lines = []
     for m in thread:
         role = "Reviewer" if m["role"] == "reviewer" else "Agent"
@@ -121,7 +145,6 @@ def listen_sse(backend: str, case_id: str, thread: list[dict], stop: threading.E
 
 
 def wait_for_agent_response(thread: list[dict], prev_len: int, timeout: int = 30) -> bool:
-    """Block until a new agent message appears in the thread, or timeout."""
     for _ in range(timeout):
         time.sleep(1)
         if len(thread) > prev_len and thread[-1]["role"] == "agent":
@@ -129,16 +152,19 @@ def wait_for_agent_response(thread: list[dict], prev_len: int, timeout: int = 30
     return False
 
 
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+
 def run(case_id: str, backend: str, max_turns: int) -> None:
     print(f"\n{'='*60}")
     print(f"Case Review Demo — Case: {case_id}")
-    print(f"Backend: {backend}  |  Max turns: {max_turns}")
+    print(f"Provider: {LLM_PROVIDER}  |  Backend: {backend}  |  Max turns: {max_turns}")
     print(f"{'='*60}\n")
 
     thread: list[dict] = []
     stop = threading.Event()
 
-    # Start SSE listener in background
     listener = threading.Thread(
         target=listen_sse,
         args=(backend, case_id, thread, stop),
@@ -146,14 +172,12 @@ def run(case_id: str, backend: str, max_turns: int) -> None:
     )
     listener.start()
 
-    # Wait for agent's opening message
     print("[System] Waiting for agent to open the case...")
     time.sleep(2)
 
     for turn in range(1, max_turns + 1):
         print(f"\n--- Turn {turn}/{max_turns} ---")
 
-        # Reviewer LLM generates next question
         question = reviewer_chain.invoke({
             "prompt_base": prompt_base,
             "history": format_history(thread),
@@ -163,7 +187,6 @@ def run(case_id: str, backend: str, max_turns: int) -> None:
         thread.append({"role": "reviewer", "text": question})
         post_reviewer_message(backend, case_id, question)
 
-        # Wait for agent response via SSE
         prev_len = len(thread)
         responded = wait_for_agent_response(thread, prev_len, timeout=30)
         if not responded:
@@ -174,10 +197,6 @@ def run(case_id: str, backend: str, max_turns: int) -> None:
     print("Review session complete.")
     print(f"{'='*60}\n")
 
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Case Review LLM Orchestrator")
