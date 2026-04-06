@@ -12,12 +12,25 @@ Usage:
 
 import argparse
 import json
+import os
 import threading
 import time
 
 import httpx
+from dotenv import load_dotenv
+load_dotenv()  # loads CONFIG_PATH (and other vars) from .env if present
+
 from safechain import model
 from safechain.prompts import ValidChatPromptTemplate
+
+if not os.environ.get("CONFIG_PATH"):
+    raise EnvironmentError(
+        "CONFIG_PATH environment variable is not set.\n"
+        "Set it to the path of your safechain config YAML, e.g.:\n"
+        "  export CONFIG_PATH=/path/to/safechain_config.yaml\n"
+        "Or create a .env file in this directory with:\n"
+        "  CONFIG_PATH=/path/to/safechain_config.yaml"
+    )
 
 # ---------------------------------------------------------------------------
 # Config
