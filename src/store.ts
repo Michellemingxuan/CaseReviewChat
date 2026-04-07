@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CaseList, Message, SseStatus, StoreState } from './types'
 
-const STORAGE_KEY = 'case-review-threads-v2'
+const STORAGE_KEY = 'case-review-threads-v3'
 
 export const useStore = create<StoreState>()(
   persist(
