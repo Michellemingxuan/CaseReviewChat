@@ -1,6 +1,5 @@
-const BASE = '/api'
-
 import type { CaseList } from './types'
+const BASE = '/api'
 
 export async function fetchCaseList(): Promise<CaseList> {
   const res = await fetch(`${BASE}/cases`)

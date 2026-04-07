@@ -6,7 +6,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const CASES = ['C-7891', 'C-4523', 'C-2847', 'M-1892', 'M-5671']
+const CASES = { consumer: ['7891', '4523', '2847'], commercial: ['1892', '5671'] }
 
 // SSE clients per case: caseId -> list of active response streams
 const clients: Record<string, Response[]> = {}
@@ -27,6 +27,9 @@ function broadcast(caseId: string, role: 'agent' | 'reviewer', text: string) {
 app.get('/api/cases', (_req, res) => {
   res.json(CASES)
 })
+
+// Helper: all case IDs flat
+const allCaseIds = () => [...CASES.consumer, ...CASES.commercial]
 
 app.get('/api/cases/:id/stream', (req, res) => {
   const { id } = req.params
