@@ -1,19 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Message, SseStatus, StoreState } from './types'
+import type { CaseList, Message, SseStatus, StoreState } from './types'
 
-const STORAGE_KEY = 'case-review-threads'
+const STORAGE_KEY = 'case-review-threads-v2'
 
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
-      caseList: [],
+      caseList: { consumer: [], commercial: [] } as CaseList,
       activeCase: null,
       threads: {},
       sseStatus: 'disconnected' as SseStatus,
       unread: new Set<string>(),
 
-      setCaseList: (ids) => set({ caseList: ids }),
+      setCaseList: (list) => set({ caseList: list }),
 
       setActiveCase: (id) =>
         set((state) => {

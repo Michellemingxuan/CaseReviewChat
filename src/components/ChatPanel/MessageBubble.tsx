@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { Message } from '../../types'
 import styles from './MessageBubble.module.css'
 
@@ -25,7 +26,9 @@ export function MessageBubble({ message, onRewind }: Props) {
     >
       <div className={styles.label}>{isAgent ? 'Agent' : 'Reviewer'}</div>
       <div className={styles.row}>
-        <div className={styles.bubble}>{message.text}</div>
+        <div className={styles.bubble}>
+          <ReactMarkdown>{message.text}</ReactMarkdown>
+        </div>
         {hovered && (
           <button
             className={styles.rewindBtn}

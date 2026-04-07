@@ -48,6 +48,31 @@
   border-radius: 12px 12px 2px 12px;
 }
 
+/* ── Markdown content inside bubbles ─────────────────────────────────── */
+.bubble p       { margin: 0 0 8px; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble strong  { font-weight: 600; }
+.bubble em      { font-style: italic; }
+.bubble h1, .bubble h2, .bubble h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 10px 0 4px;
+}
+.bubble ul, .bubble ol {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+.bubble li      { margin-bottom: 3px; }
+.bubble code    {
+  font-family: monospace;
+  font-size: 12px;
+  background: rgba(0,0,0,0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.reviewer .bubble code { background: rgba(255,255,255,0.2); }
+.bubble hr      { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
 .rewindBtn {
   background: none;
   border: none;

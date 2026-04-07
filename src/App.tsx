@@ -16,8 +16,8 @@ function App() {
     fetchCaseList().then(setCaseList).catch(console.error)
   }, [setCaseList])
 
-  const consumerCases = caseList.filter((id) => id.startsWith('C-'))
-  const commercialCases = caseList.filter((id) => id.startsWith('M-'))
+  const consumerCases = caseList.consumer
+  const commercialCases = caseList.commercial
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>

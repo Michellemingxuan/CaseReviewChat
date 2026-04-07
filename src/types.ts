@@ -7,14 +7,19 @@ export type Message = {
 
 export type SseStatus = 'connected' | 'disconnected'
 
+export type CaseList = {
+  consumer: string[]
+  commercial: string[]
+}
+
 export type StoreState = {
-  caseList: string[]
+  caseList: CaseList
   activeCase: string | null
   threads: Record<string, Message[]>
   sseStatus: SseStatus
   unread: Set<string>
   // actions
-  setCaseList: (ids: string[]) => void
+  setCaseList: (list: CaseList) => void
   setActiveCase: (id: string) => void
   appendMessage: (caseId: string, msg: Message) => void
   rewindThread: (caseId: string, messageId: string) => void

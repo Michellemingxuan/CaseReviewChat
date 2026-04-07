@@ -1,6 +1,8 @@
 const BASE = '/api'
 
-export async function fetchCaseList(): Promise<string[]> {
+import type { CaseList } from './types'
+
+export async function fetchCaseList(): Promise<CaseList> {
   const res = await fetch(`${BASE}/cases`)
   if (!res.ok) throw new Error(`fetchCaseList failed: ${res.status}`)
   return res.json()

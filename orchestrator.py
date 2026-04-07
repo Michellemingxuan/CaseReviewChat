@@ -72,7 +72,7 @@ if LLM_PROVIDER == "safechain":
             "CONFIG_PATH environment variable is not set.\n"
             "Create a .env file with: CONFIG_PATH=/path/to/safechain_config.yaml"
         )
-    from safechain import model
+    from safechain.lcel import model
     from safechain.prompts import ValidChatPromptTemplate
 
     llm = model("3")
