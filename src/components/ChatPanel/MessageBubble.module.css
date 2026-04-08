@@ -1,7 +1,7 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  max-width: 72%;
+  max-width: 85%;
   position: relative;
 }
 
@@ -72,6 +72,30 @@
 }
 .reviewer .bubble code { background: rgba(255,255,255,0.2); }
 .bubble hr      { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+/* ── Tables ───────────────────────────────────────────────────────────── */
+.bubble :global(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.bubble :global(th),
+.bubble :global(td) {
+  padding: 6px 10px;
+  text-align: left;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.bubble :global(th) {
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+.bubble :global(tr:nth-child(even) td) { background: rgba(0, 0, 0, 0.02); }
+
+.reviewer .bubble :global(th),
+.reviewer .bubble :global(td) { border-color: rgba(255,255,255,0.2); }
+.reviewer .bubble :global(th) { background: rgba(255,255,255,0.15); }
+.reviewer .bubble :global(tr:nth-child(even) td) { background: rgba(255,255,255,0.07); }
 
 .rewindBtn {
   background: none;

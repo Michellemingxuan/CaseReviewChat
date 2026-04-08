@@ -28,9 +28,6 @@ app.get('/api/cases', (_req, res) => {
   res.json(CASES)
 })
 
-// Helper: all case IDs flat
-const allCaseIds = () => [...CASES.consumer, ...CASES.commercial]
-
 app.get('/api/cases/:id/stream', (req, res) => {
   const { id } = req.params
   res.setHeader('Content-Type', 'text/event-stream')
