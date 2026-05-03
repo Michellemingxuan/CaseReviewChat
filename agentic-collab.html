@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Agentic Case Review · Live Collaboration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:        #0A1F44;
+    --navy-2:      #11295A;
+    --blue:        #006FCF;
+    --blue-2:      #0089F2;
+    --blue-soft:   #E8F1FB;
+    --blue-tint:   #F4F8FD;
+
+    --bg:          #F4F6FA;
+    --bg-2:        #EEF1F7;
+    --card:        #FFFFFF;
+    --card-soft:   #FBFCFE;
+    --line:        #E2E7F0;
+    --line-2:      #D5DCE8;
+
+    --ink:         #0F1B33;
+    --ink-2:       #2C3A55;
+    --ink-3:       #5B6B85;
+    --ink-4:       #8593AB;
+
+    --green:       #2D8F5C;
+    --green-bg:    #E5F4EB;
+    --amber:       #B7791F;
+    --amber-bg:    #FCF1D8;
+    --red:         #C53030;
+    --red-bg:      #FCE7E7;
+    --purple:      #7048B0;
+    --purple-bg:   #F0E9FA;
+    --teal:        #1F8A8A;
+    --teal-bg:     #DDF2F2;
+
+    --serif:       Georgia, 'Times New Roman', serif;
+    --sans:        'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --mono:        'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+    --shadow-sm:   0 1px 2px rgba(10,31,68,0.05);
+    --shadow:      0 2px 6px rgba(10,31,68,0.06), 0 1px 2px rgba(10,31,68,0.04);
+    --shadow-lg:   0 12px 32px -12px rgba(10,31,68,0.18), 0 4px 12px -4px rgba(10,31,68,0.08);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ================================================================
+     APP SHELL
+     ================================================================ */
+  .app {
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 56px 1fr;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    display: grid;
+    grid-template-columns: 320px 1fr 320px;
+    align-items: center;
+    background: var(--navy);
+    color: white;
+    border-bottom: 1px solid var(--navy-2);
+  }
+  .topbar-left, .topbar-right { padding: 0 20px; display: flex; align-items: center; gap: 14px; }
+  .topbar-center { padding: 0 28px; display: flex; align-items: center; gap: 18px; justify-content: center; }
+  .topbar-right { justify-content: flex-end; gap: 14px; }
+
+  .amex-mark {
+    background: var(--blue);
+    padding: 5px 11px;
+    line-height: 1.05;
+    display: inline-flex;
+    flex-direction: column;
+  }
+  .amex-mark span {
+    color: white;
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .product-name {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+  }
+  .product-name em {
+    font-style: normal;
+    color: rgba(255,255,255,0.55);
+    font-weight: 400;
+    margin-left: 6px;
+  }
+  .case-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+    border-radius: 4px;
+  }
+  .case-pill .label {
+    font-family: var(--sans);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    font-weight: 600;
+  }
+  .live-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px 5px 8px;
+    background: rgba(45,143,92,0.15);
+    color: #6BE0A2;
+    border: 1px solid rgba(107,224,162,0.3);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 4px;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #6BE0A2;
+    animation: blink 1.6s infinite;
+  }
+  @keyframes blink {
+    0%,100% { box-shadow: 0 0 0 0 rgba(107,224,162,0.5); }
+    60%     { box-shadow: 0 0 0 6px rgba(107,224,162,0); }
+  }
+  .icon-btn {
+    width: 30px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+  .user-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4F8DFF, #006FCF);
+    color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  /* ================================================================
+     MAIN GRID — TWO COLUMNS, right side stacked vertically
+     ================================================================ */
+  .workspace {
+    display: grid;
+    grid-template-columns: var(--col-left, 1.55fr) 4px minmax(540px, 1fr);
+    overflow: hidden;
+    min-height: 0;
+  }
+  .col {
+    overflow: hidden;
+    min-height: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Right column: logs on top, flow on bottom — 5:5 default, draggable */
+  .right-stack {
+    display: grid;
+    grid-template-rows: var(--row-top, 1fr) 4px minmax(0, 1fr);
+    overflow: hidden;
+    min-height: 0;
+  }
+  .right-section {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    background: var(--bg);
+  }
+  .right-section.logs-section { grid-row: 1; }
+  .resizer-v                  { grid-row: 2; }
+  .right-section.flow-section { grid-row: 3; }
+  .right-section.flow-section {
+    background: linear-gradient(180deg, var(--bg) 0%, #F8FAFD 100%);
+  }
+
+  /* Draggable resizers */
+  .resizer {
+    background: var(--line);
+    position: relative;
+    z-index: 8;
+    transition: background 0.15s;
+  }
+  .resizer-h { cursor: col-resize; }
+  .resizer-v { cursor: row-resize; }
+  .resizer:hover, .resizer.dragging {
+    background: var(--blue);
+  }
+  /* center grip — only visible on hover/drag */
+  .resizer::after {
+    content: '';
+    position: absolute;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.85);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .resizer-h::after {
+    width: 2px;
+    height: 32px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .resizer-v::after {
+    width: 32px;
+    height: 2px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .resizer:hover::after, .resizer.dragging::after { opacity: 1; }
+
+  /* While dragging, lock cursor and disable selection page-wide */
+  body.body-resizing-x,
+  body.body-resizing-x * { cursor: col-resize !important; user-select: none !important; }
+  body.body-resizing-y,
+  body.body-resizing-y * { cursor: row-resize !important; user-select: none !important; }
+
+  /* Custom scrollbar */
+  .scroll-area::-webkit-scrollbar,
+  .right-section::-webkit-scrollbar { width: 8px; }
+  .scroll-area::-webkit-scrollbar-track,
+  .right-section::-webkit-scrollbar-track { background: transparent; }
+  .scroll-area::-webkit-scrollbar-thumb,
+  .right-section::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
+  .scroll-area::-webkit-scrollbar-thumb:hover,
+  .right-section::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+  /* common section header */
+  .col-header {
+    background: var(--bg);
+    padding: 16px 22px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .col-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .col-title {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .col-meta {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 4px;
+  }
+
+  /* ================================================================
+     LEFT — CONVERSATION  (now the main, wider panel)
+     ================================================================ */
+  .left-col { background: var(--bg); }
+  .conv-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .conv-list {
+    padding: 18px 28px 24px;
+    max-width: 980px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .conv-day {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 4px 4px;
+    color: var(--ink-4);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .conv-day::before, .conv-day::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  /* a Q&A pair = two stacked bubbles */
+  .turn {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .turn:hover { background: rgba(0,111,207,0.04); }
+  .turn.active { background: var(--blue-tint); box-shadow: inset 3px 0 0 var(--blue); }
+
+  .bubble {
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    box-shadow: var(--shadow-sm);
+    max-width: 88%;
+  }
+  .bubble.q {
+    background: white;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.a {
+    background: linear-gradient(180deg, #0A1F44, #11295A);
+    color: white;
+    border: 1px solid var(--navy-2);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.a strong { color: white; font-weight: 600; }
+
+  .bubble-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    gap: 12px;
+  }
+  .bubble.q .bubble-head { color: var(--ink-4); }
+  .bubble.a .bubble-head { color: rgba(255,255,255,0.55); }
+
+  .role-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .role-tag svg { width: 12px; height: 12px; }
+  .timestamp { font-family: var(--mono); font-weight: 500; opacity: 0.85; }
+
+  /* Answer footer with confidence + actions */
+  .answer-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    gap: 12px;
+  }
+  .conf-meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .conf-dots { display: flex; gap: 3px; }
+  .conf-dots span {
+    width: 18px; height: 3px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 1px;
+  }
+  .conf-dots span.on { background: #6BE0A2; }
+  .conf-text {
+    font-size: 10.5px;
+    font-family: var(--mono);
+    color: rgba(255,255,255,0.7);
+  }
+  .conf-text .pct { color: white; font-weight: 600; margin-right: 4px; }
+
+  .answer-actions { display: flex; gap: 6px; }
+  .act-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .act-chip svg {
+    opacity: 0.85;
+  }
+  .act-chip:hover { background: rgba(255,255,255,0.12); color: white; }
+
+  /* answer body refinements */
+  .answer-bullets {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .answer-bullets li {
+    position: relative;
+    padding: 4px 0 4px 18px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.92);
+  }
+  .answer-bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px;
+    width: 10px; height: 1px;
+    background: rgba(135,194,255,0.55);
+  }
+  .answer-bullets li code {
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: #B7DDFF;
+  }
+
+  /* composer */
+  .composer-wrap {
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    padding: 14px 28px 16px;
+  }
+  .composer {
+    max-width: 980px;
+    margin: 0 auto;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+  .composer textarea {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    resize: none;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: transparent;
+    min-height: 36px;
+    padding: 4px 2px;
+  }
+  .composer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+    border-top: 1px dashed var(--line);
+    padding-top: 8px;
+  }
+  .composer-tools { display: flex; gap: 6px; }
+  .composer-chip {
+    font-size: 10.5px;
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+    padding: 4px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .composer-chip:hover { color: var(--blue); border-color: var(--blue); }
+  .send-btn {
+    background: var(--blue);
+    color: white;
+    border: 0;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .send-btn:hover { background: var(--blue-2); }
+
+  /* ================================================================
+     RIGHT TOP — THINKING FLOW
+     ================================================================ */
+  .flow-head {
+    padding: 16px 22px 12px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .flow-headline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+  }
+  .flow-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    font-weight: 700;
+  }
+  .flow-status-block {
+    flex-shrink: 0;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 10px;
+    background: var(--green-bg);
+    border: 1px solid #B5E2C7;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .status-pill .pulse {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+  .status-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); }
+
+  /* phase bar */
+  .phase-bar {
+    display: flex;
+    margin-top: 12px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .phase {
+    flex: 1;
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-right: 1px solid var(--line);
+    position: relative;
+  }
+  .phase:last-child { border-right: 0; }
+  .phase .ph-label {
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    font-weight: 700;
+  }
+  .phase .ph-name {
+    font-size: 11px;
+    color: var(--ink-2);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .phase.done {
+    background: linear-gradient(180deg, #F1FAF4, #FBFEFC);
+  }
+  .phase.done .ph-name { color: var(--green); }
+  .phase.done .ph-name::before {
+    content: '✓ ';
+    font-weight: 700;
+  }
+  .phase.active {
+    background: linear-gradient(180deg, #EAF3FC, #F8FBFE);
+  }
+  .phase.active .ph-name { color: var(--blue); }
+
+  /* Orchestration canvas */
+  .orch-canvas {
+    padding: 14px 22px 14px;
+  }
+  .orch-glass {
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.6));
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 16px 14px;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .orch-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,111,207,0.4), transparent);
+  }
+  .orch-grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(10,31,68,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(10,31,68,0.04) 1px, transparent 1px);
+    background-size: 18px 18px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at center, black 50%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 50%, transparent 80%);
+  }
+  .graph-wrap {
+    position: relative;
+    z-index: 1;
+    height: 220px;
+  }
+  .graph-svg {
+    width: 100%;
+    height: 220px;
+    display: block;
+  }
+  .graph-link {
+    fill: none;
+    stroke: var(--line-2);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+  }
+  .graph-link.active {
+    stroke: var(--blue);
+    stroke-width: 1.8;
+    animation: dash 1.4s linear infinite;
+  }
+  .graph-link.done {
+    stroke: var(--green);
+    stroke-width: 1.6;
+    stroke-dasharray: 0;
+    opacity: 0.8;
+  }
+  @keyframes dash {
+    to { stroke-dashoffset: -16; }
+  }
+
+  .node {
+    position: absolute;
+    width: 144px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 11px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+    transform: translate(-50%, -50%);
+  }
+  .node:hover {
+    border-color: var(--blue);
+    box-shadow: 0 6px 24px -8px rgba(0,111,207,0.35);
+  }
+  .node.selected {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(0,111,207,0.18), var(--shadow-lg);
+  }
+  .node-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .node-icon {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    background: var(--blue-soft);
+    color: var(--blue);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .node-icon svg { width: 12px; height: 12px; }
+  .node-icon.purple { background: var(--purple-bg); color: var(--purple); }
+  .node-icon.teal   { background: var(--teal-bg);   color: var(--teal);   }
+
+  .node-status {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--ink-4);
+  }
+  .node-status.done { background: var(--green); }
+  .node-status.run {
+    background: var(--blue);
+    animation: nodepulse 1.4s infinite;
+  }
+  .node-status.idle { background: var(--line-2); }
+  @keyframes nodepulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(0,111,207,0.5); }
+    60%     { box-shadow: 0 0 0 7px rgba(0,111,207,0); }
+  }
+  .node-name {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.25;
+    margin-bottom: 1px;
+  }
+  .node-role {
+    font-size: 10px;
+    color: var(--ink-3);
+    line-height: 1.35;
+  }
+  .node-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed var(--line);
+    font-size: 9.5px;
+    color: var(--ink-4);
+  }
+  .node-foot .t {
+    font-family: var(--mono);
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+  .group-label {
+    position: absolute;
+    color: var(--ink-4);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  /* Replay */
+  .replay {
+    margin: 10px 22px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+  }
+  .replay-controls { display: flex; align-items: center; gap: 4px; }
+  .replay-btn {
+    width: 24px; height: 24px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--ink-2);
+  }
+  .replay-btn:hover { color: var(--blue); border-color: var(--blue); }
+  .replay-track {
+    flex: 1;
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    position: relative;
+  }
+  .replay-fill {
+    position: absolute; top: 0; left: 0;
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, var(--navy), var(--green));
+    border-radius: 2px;
+  }
+  .replay-handle {
+    position: absolute;
+    top: 50%; left: 100%;
+    transform: translate(-50%, -50%);
+    width: 12px; height: 12px;
+    background: white;
+    border: 2px solid var(--green);
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(45,143,92,0.3);
+  }
+  .replay-time {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    min-width: 80px;
+    text-align: right;
+  }
+  .replay-time strong { color: var(--ink); font-weight: 600; }
+
+  /* ================================================================
+     RIGHT BOTTOM — AUDIT TRACE LOGS
+     ================================================================ */
+  .logs-section { background: #0E1828; }
+  .logs-head {
+    padding: 14px 22px 12px;
+    background: linear-gradient(180deg, #14213A, #0E1828);
+    border-bottom: 1px solid #1F2D48;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+  }
+  .logs-head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .logs-head .turn-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #98A6C5;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .logs-head .turn-arrow {
+    width: 18px; height: 18px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 3px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #98A6C5;
+    cursor: pointer;
+  }
+  .logs-head .turn-arrow:hover { color: white; background: rgba(255,255,255,0.12); }
+  .logs-title {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 2px;
+    letter-spacing: -0.005em;
+  }
+  .logs-q {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #98A6C5;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .logs-q::before { content: '› '; color: var(--blue-2); }
+
+  .logs-stream {
+    padding: 12px 0 32px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #C8D5EE;
+  }
+
+  .log-block {
+    padding: 12px 22px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .log-block:last-child { border-bottom: 0; }
+
+  .log-bracket {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding: 3px 0;
+  }
+  .log-bracket .lb-tag {
+    padding: 3px 10px;
+    background: rgba(0,111,207,0.18);
+    color: #79BDFF;
+    border: 1px solid rgba(0,111,207,0.4);
+    border-radius: 3px;
+  }
+  .log-bracket .lb-meta {
+    color: #6B7BA0;
+    font-weight: 500;
+    margin-left: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 10.5px;
+  }
+
+  .log-bracket.q-check  .lb-tag { background: rgba(45,143,92,0.18);  color: #6BE0A2; border-color: rgba(45,143,92,0.4); }
+  .log-bracket.team     .lb-tag { background: rgba(112,72,176,0.22); color: #C0A4F2; border-color: rgba(112,72,176,0.45); }
+  .log-bracket.spec     .lb-tag { background: rgba(0,111,207,0.18);  color: #79BDFF; border-color: rgba(0,111,207,0.4); }
+  .log-bracket.report   .lb-tag { background: rgba(31,138,138,0.22); color: #5FCFCF; border-color: rgba(31,138,138,0.45); }
+  .log-bracket.synth    .lb-tag { background: rgba(255,201,122,0.16); color: #FFC97A; border-color: rgba(255,201,122,0.35); }
+
+  .log-line {
+    padding-left: 0;
+    color: #C8D5EE;
+    margin: 0;
+  }
+  .log-line.dim { color: #98A6C5; }
+  .log-line strong { color: white; font-weight: 600; }
+
+  .log-bullet {
+    position: relative;
+    padding-left: 18px;
+    margin: 0;
+  }
+  .log-bullet::before {
+    content: '─';
+    position: absolute;
+    left: 4px;
+    color: #45527A;
+  }
+  .log-bullet .k { color: #98A6C5; font-weight: 500; }
+  .log-bullet .v { color: white; }
+  .log-bullet .pos { color: #6BE0A2; font-weight: 600; }
+  .log-bullet .neg { color: #FFB6B6; font-weight: 600; }
+  .log-bullet code,
+  .log-line code,
+  .log-quote code {
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #B6E0FF;
+    font-size: 12px;
+  }
+
+  .log-sub {
+    padding-left: 38px;
+    position: relative;
+    color: #98A6C5;
+  }
+  .log-sub::before {
+    content: '─';
+    position: absolute;
+    left: 24px;
+    color: #45527A;
+  }
+
+  .log-tool {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 0;
+    color: #FFC97A;
+    font-weight: 500;
+  }
+
+  .log-quote {
+    margin: 6px 0 6px 18px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+    border-left: 2px solid var(--blue-2);
+    border-radius: 0 4px 4px 0;
+    color: #DCE6FA;
+    font-size: 12px;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .log-quote::-webkit-scrollbar { height: 6px; }
+  .log-quote::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+
+  .log-final {
+    background: linear-gradient(180deg, rgba(0,111,207,0.12), rgba(0,111,207,0.04));
+    border: 1px solid rgba(0,111,207,0.25);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 0 22px 0;
+  }
+  .log-final .answer-tag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: #6BE0A2;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: inline-block;
+  }
+  .log-final p {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: white;
+    margin: 0;
+  }
+  .log-final p code {
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: #B6E0FF;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* trust strip — sits at the very top of logs, summarizes */
+  .trust-strip {
+    margin: 14px 22px 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+  }
+  .trust-ring {
+    position: relative;
+    width: 56px; height: 56px;
+    flex-shrink: 0;
+  }
+  .trust-ring svg { transform: rotate(-90deg); }
+  .ring-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 5;
+  }
+  .ring-fg {
+    fill: none;
+    stroke: #6BE0A2;
+    stroke-width: 5;
+    stroke-linecap: round;
+  }
+  .trust-num {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    color: white;
+  }
+  .trust-num .v {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .trust-num .lbl {
+    font-size: 7.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #98A6C5;
+    font-weight: 700;
+    margin-top: 1px;
+  }
+  .trust-text {
+    flex: 1;
+    color: #C8D5EE;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .trust-text strong { color: white; font-weight: 600; }
+  .trust-band-mini {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(45,143,92,0.18);
+    color: #6BE0A2;
+    border: 1px solid rgba(45,143,92,0.35);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-bottom: 4px;
+  }
+
+  /* logs footer actions */
+  .logs-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px 22px 18px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.15));
+  }
+  .logs-actions .btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.04);
+    color: #C8D5EE;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .logs-actions .btn:hover { background: rgba(255,255,255,0.08); color: white; }
+  .logs-actions .btn.primary {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+  }
+  .logs-actions .btn.primary:hover { background: var(--blue-2); }
+  .logs-actions .btn.flag {
+    background: rgba(183,121,31,0.18);
+    border-color: rgba(183,121,31,0.5);
+    color: #FFC97A;
+  }
+  .logs-actions .btn.flag:hover {
+    background: rgba(183,121,31,0.32);
+    color: #FFD89A;
+    border-color: rgba(183,121,31,0.7);
+  }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================================================================
+       TOP BAR
+       ================================================================ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="amex-mark">
+        <span>American</span>
+        <span>Express</span>
+      </div>
+      <div class="product-name">Case Review<em>· Agentic Console</em></div>
+    </div>
+    <div class="topbar-center">
+      <div class="case-pill">
+        <span class="label">Case</span>
+        <span>M-2847</span>
+        <span style="opacity:0.4;">·</span>
+        <span>Consumer · Portfolio Review</span>
+      </div>
+      <div class="case-pill">
+        <span class="label">Reviewer</span>
+        <span>m.liu@aexp.com</span>
+      </div>
+      <div class="live-chip">
+        <span class="live-dot"></span>
+        <span>System Live</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" title="History">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9c-2.5 0-4.7 1-6.3 2.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+      </button>
+      <button class="icon-btn" title="Settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12c0 .7-.1 1.3-.2 2l2 1.6-2 3.5-2.5-1c-1 .8-2.2 1.4-3.4 1.7L12.5 22h-1l-.4-2.2c-1.2-.3-2.3-.9-3.4-1.7l-2.5 1-2-3.5 2-1.6c-.1-.7-.2-1.3-.2-2s.1-1.3.2-2l-2-1.6 2-3.5 2.5 1c1-.8 2.2-1.4 3.4-1.7L11.5 2h1l.4 2.2c1.2.3 2.3.9 3.4 1.7l2.5-1 2 3.5-2 1.6c.1.7.2 1.3.2 2z"/></svg>
+      </button>
+      <div class="user-avatar">ML</div>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       MAIN — TWO COLUMNS
+       ================================================================ -->
+  <div class="workspace">
+
+    <!-- =============== LEFT — CHAT (MAIN) =============== -->
+    <aside class="col left-col">
+      <div class="col-header">
+        <div class="col-eyebrow">
+          <span>Conversation</span>
+        </div>
+        <h3 class="col-title">Reviewer Thread</h3>
+        <div class="col-meta">Case <span style="font-family:var(--mono); color:var(--blue); font-weight:600;">M-2847</span> · Customer X-29A4-771F · opened 14:18 EDT</div>
+      </div>
+
+      <div class="conv-scroll scroll-area">
+        <div class="conv-list">
+          <div class="conv-day">Today · 14:32 EDT</div>
+
+          <!-- Turn 1 — completed -->
+          <div class="turn">
+            <div class="bubble q">
+              <div class="bubble-head">
+                <span class="role-tag">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 14c1.5-3 4-4.5 6-4.5s4.5 1.5 6 4.5"/></svg>
+                  Reviewer
+                </span>
+                <span class="timestamp">14:18:42</span>
+              </div>
+              Who is the customer associated with this case?
+            </div>
+            <div class="bubble a">
+              <div class="bubble-head">
+                <span class="role-tag">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="9" rx="2"/><path d="M5 12v2M11 12v2"/></svg>
+                  Agentic System
+                </span>
+                <span class="timestamp">14:18:51</span>
+              </div>
+              The case is associated with <strong>customer X-29A4-771F</strong> — a Consumer-segment cardmember in good standing since 2018, currently active across two portfolios.
+              <div class="answer-foot">
+                <div class="conf-meter">
+                  <div class="conf-dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+                  <span class="conf-text"><span class="pct">99%</span>· factual</span>
+                </div>
+                <div class="answer-actions">
+                  <span class="act-chip" title="Rewind to this point">
+                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8L6 4M2 8L6 12M2 8h7a4 4 0 0 1 0 8h-2"/></svg>
+                    Rewind
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Turn 2 — ACTIVE (just answered) -->
+          <div class="turn active">
+            <div class="bubble q">
+              <div class="bubble-head">
+                <span class="role-tag">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 14c1.5-3 4-4.5 6-4.5s4.5 1.5 6 4.5"/></svg>
+                  Reviewer
+                </span>
+                <span class="timestamp">14:32:01</span>
+              </div>
+              How many consumer cards does the customer have?
+            </div>
+            <div class="bubble a">
+              <div class="bubble-head">
+                <span class="role-tag">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="9" rx="2"/><path d="M5 12v2M11 12v2"/></svg>
+                  Agentic System
+                </span>
+                <span class="timestamp">14:32:04</span>
+              </div>
+              <strong>The customer has 2 consumer cards</strong>, both under the <code style="font-family:var(--mono); background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; color:#B7DDFF; font-size:12.5px;">CPS</code> (Consumer Products Services) portfolio:
+              <ul class="answer-bullets">
+                <li>BLUE CASH PREFERRED<sup style="font-size:9px; opacity:0.7;">(SM)</sup></li>
+                <li>AMEX EVERYDAY<sup style="font-size:9px; opacity:0.7;">(SM)</sup> PREFERRED CREDIT CARD</li>
+              </ul>
+              <div style="margin-top:10px; font-size:13px; color:rgba(255,255,255,0.78);">
+                Confirmed by both the live <code style="font-family:var(--mono); background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; color:#B7DDFF; font-size:12px;">crossbu_cards</code> snapshot and the curated report <code style="font-family:var(--mono); background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; color:#B7DDFF; font-size:12px;">crossbu_exp_0.md</code>.
+              </div>
+              <div class="answer-foot">
+                <div class="conf-meter">
+                  <div class="conf-dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+                  <span class="conf-text"><span class="pct">96%</span>· cross-validated</span>
+                </div>
+                <div class="answer-actions">
+                  <span class="act-chip" title="Rewind to this point">
+                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8L6 4M2 8L6 12M2 8h7a4 4 0 0 1 0 8h-2"/></svg>
+                    Rewind
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="composer-wrap">
+        <div class="composer">
+          <textarea placeholder="Ask a follow-up. Shift+Enter for newline."></textarea>
+          <div class="composer-row">
+            <div class="composer-tools">
+              <span class="composer-chip">+ Attach</span>
+            </div>
+            <button class="send-btn">
+              Send
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Horizontal resizer between chat and right stack -->
+    <div class="resizer resizer-h" title="Drag to resize · double-click to reset"></div>
+
+    <!-- =============== RIGHT STACK — logs on top, flow on bottom =============== -->
+    <aside class="col right-stack">
+
+      <!-- Vertical resizer between logs (top) and flow (bottom) -->
+      <div class="resizer resizer-v" title="Drag to resize · double-click to reset"></div>
+
+      <!-- ───── Right BOTTOM — THINKING FLOW ───── -->
+      <section class="right-section flow-section">
+        <div class="flow-head">
+          <div class="phase-bar">
+            <div class="phase done"><span class="ph-label">P1</span><span class="ph-name">Understand</span></div>
+            <div class="phase done"><span class="ph-label">P2</span><span class="ph-name">Plan</span></div>
+            <div class="phase done"><span class="ph-label">P3</span><span class="ph-name">Investigate</span></div>
+            <div class="phase done"><span class="ph-label">P4</span><span class="ph-name">Retrieve</span></div>
+            <div class="phase done"><span class="ph-label">P5</span><span class="ph-name">Synthesize</span></div>
+            <div class="phase active"><span class="ph-label">P6</span><span class="ph-name">Answered</span></div>
+          </div>
+        </div>
+
+        <div class="orch-canvas">
+          <div class="orch-glass">
+            <div class="orch-grid-bg"></div>
+            <div class="graph-wrap">
+              <svg class="graph-svg" viewBox="0 0 700 220" preserveAspectRatio="xMidYMid meet">
+                <!-- Chat -> Orchestrator -->
+                <path class="graph-link done" d="M 100 110 C 160 110, 180 110, 240 110" />
+                <!-- Orchestrator -> 2 specialists -->
+                <path class="graph-link done" d="M 320 110 C 400 110, 400 50,  470 50" />
+                <path class="graph-link done" d="M 320 110 C 400 110, 400 170, 470 170" />
+                <!-- Specialists -> Synthesis -->
+                <path class="graph-link done" d="M 550 50  C 590 50, 590 110, 620 110" />
+                <path class="graph-link done" d="M 550 170 C 590 170, 590 110, 620 110" />
+              </svg>
+
+              <!-- Chat Agent -->
+              <div class="node" style="left:8.5%; top:50%;">
+                <div class="node-row1">
+                  <div class="node-icon">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8H6l-3 2v-2H2z"/></svg>
+                  </div>
+                  <span class="node-status done"></span>
+                </div>
+                <div class="node-name">Chat Agent</div>
+                <div class="node-role">Parses intent</div>
+                <div class="node-foot">
+                  <span>S1</span>
+                  <span class="t">0.06s</span>
+                </div>
+              </div>
+
+              <!-- Orchestrator -->
+              <div class="node" style="left:34%; top:50%;">
+                <div class="node-row1">
+                  <div class="node-icon">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3 3l2 2M11 11l2 2M3 13l2-2M11 5l2-2"/></svg>
+                  </div>
+                  <span class="node-status done"></span>
+                </div>
+                <div class="node-name">Orchestrator</div>
+                <div class="node-role">Plans · dispatches 2</div>
+                <div class="node-foot">
+                  <span>S2</span>
+                  <span class="t">0.09s</span>
+                </div>
+              </div>
+
+              <div class="group-label" style="left:60%; top:3%;">Specialist Team</div>
+
+              <!-- Specialist 1 — crossbu -->
+              <div class="node selected" style="left:60%; top:23%;">
+                <div class="node-row1">
+                  <div class="node-icon">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v3H2zM2 9h12v3H2z"/></svg>
+                  </div>
+                  <span class="node-status done"></span>
+                </div>
+                <div class="node-name">crossbu</div>
+                <div class="node-role">Live data specialist</div>
+                <div class="node-foot">
+                  <span>S3a</span>
+                  <span class="t">0.41s</span>
+                </div>
+              </div>
+
+              <!-- Specialist 2 — report agent -->
+              <div class="node" style="left:60%; top:77%;">
+                <div class="node-row1">
+                  <div class="node-icon teal">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1h7l3 3v11H3z"/><path d="M5 7h6M5 9h6M5 11h4"/></svg>
+                  </div>
+                  <span class="node-status done"></span>
+                </div>
+                <div class="node-name">report_agent</div>
+                <div class="node-role">Curated reports</div>
+                <div class="node-foot">
+                  <span>S3b</span>
+                  <span class="t">0.32s</span>
+                </div>
+              </div>
+
+              <!-- Synthesis -->
+              <div class="node" style="left:88.5%; top:50%;">
+                <div class="node-row1">
+                  <div class="node-icon purple">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8L8 3l5 5-5 5z"/></svg>
+                  </div>
+                  <span class="node-status done"></span>
+                </div>
+                <div class="node-name">Synthesis</div>
+                <div class="node-role">Reconciles · drafts</div>
+                <div class="node-foot">
+                  <span>S4</span>
+                  <span class="t">0.16s</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="replay">
+          <div class="replay-controls">
+            <button class="replay-btn" title="Restart">
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4v8M5 8l7-4v8z"/></svg>
+            </button>
+            <button class="replay-btn" title="Step back">
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4l-6 4 6 4z"/></svg>
+            </button>
+            <button class="replay-btn" title="Step">
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4l6 4-6 4z"/></svg>
+            </button>
+          </div>
+          <div class="replay-track">
+            <div class="replay-fill"></div>
+            <div class="replay-handle"></div>
+          </div>
+          <div class="replay-time">
+            <strong>1.04s</strong> / 1.04s
+          </div>
+        </div>
+      </section>
+
+      <!-- ───── Right TOP — AUDIT TRACE LOGS (placed second in DOM, rendered top via grid-row) ───── -->
+      <section class="right-section logs-section scroll-area">
+        <div class="logs-head">
+          <div class="logs-head-row">
+            <h3 class="logs-title">Reasoning Trace</h3>
+            <span class="turn-nav">
+              <button class="turn-arrow" title="Previous turn">
+                <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4l-6 4 6 4z"/></svg>
+              </button>
+              <span>Turn 2 of 2</span>
+              <button class="turn-arrow" title="Next turn">
+                <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4l6 4-6 4z"/></svg>
+              </button>
+            </span>
+          </div>
+        </div>
+
+        <div class="logs-stream">
+
+          <!-- QUESTION CHECK -->
+          <div class="log-block">
+            <div class="log-bracket q-check">
+              <span class="lb-tag">[ Question Check ]</span>
+              <span class="lb-meta">chat_agent · 0.06s</span>
+            </div>
+            <div class="log-bullet"><span class="k">Safety / PII screen:</span> <span class="v pos">passed</span></div>
+            <div class="log-bullet"><span class="k">Scope check:</span> <span class="v pos">in scope</span></div>
+            <div class="log-bullet"><span class="k">Outcome:</span> <span class="v">Completed</span></div>
+          </div>
+
+          <!-- TEAM CONSTRUCTION -->
+          <div class="log-block">
+            <div class="log-bracket team">
+              <span class="lb-tag">[ Team Construction ]</span>
+              <span class="lb-meta">orchestrator · 0.09s</span>
+            </div>
+            <p class="log-line dim">Orchestrator selected <strong>2 tool call(s)</strong> on this turn:</p>
+            <div class="log-bullet">
+              <span class="log-tool">crossbu</span> <span class="k">(crossbu specialist)</span>
+            </div>
+            <div class="log-sub">
+              <span class="k">sub-question:</span> How many rows in <code>crossbu_cards</code> have <code>card_portfolio == CPS</code> for this case?
+            </div>
+            <div class="log-bullet">
+              <span class="log-tool">report_agent</span> <span class="k">(report agent)</span>
+            </div>
+            <div class="log-sub">
+              <span class="k">sub-question:</span> How many consumer cards does the customer have?
+            </div>
+          </div>
+
+          <!-- SPECIALIST ANALYSIS — crossbu -->
+          <div class="log-block">
+            <div class="log-bracket spec">
+              <span class="lb-tag">[ Specialist Analysis — crossbu ]</span>
+              <span class="lb-meta">0.41s · live data</span>
+            </div>
+            <div class="log-bullet">
+              <span class="k">Findings:</span> <span class="v">Customer holds <strong>2 consumer cards</strong> (filtered <code>card_portfolio == CPS</code>) in the latest single-month snapshot. Single-month snapshot, so the row count IS the card count.</span>
+            </div>
+            <div class="log-bullet"><span class="k">Evidence:</span></div>
+            <div class="log-sub">
+              <code>aggregate_column(crossbu_cards, card_portfolio, op=count, filter=card_portfolio eq CPS)</code> returned <span class="pos">2</span>
+            </div>
+            <div class="log-sub">
+              sample rows: <code>BLUE CASH PREFERRED(SM)</code>; <code>AMEX EVERYDAY(SM) PREFERRED CREDIT CARD</code>
+            </div>
+            <div class="log-sub">
+              <code>card_portfolio</code> values seen in this case: <code>CPS</code>, <code>SBS</code>
+            </div>
+          </div>
+
+          <!-- REPORT AGENT ANALYSIS -->
+          <div class="log-block">
+            <div class="log-bracket report">
+              <span class="lb-tag">[ Report Agent Analysis ]</span>
+              <span class="lb-meta">0.32s · curated</span>
+            </div>
+            <div class="log-bullet"><span class="k">Report coverage:</span> <span class="v pos">explicit</span></div>
+            <div class="log-bullet"><span class="k">Files consulted:</span> <code>crossbu_exp_0.md</code></div>
+            <div class="log-bullet"><span class="k">Report's answer:</span> <span class="v">The customer has <strong>two consumer cards</strong>: <code>BLUE CASH PREFERRED(SM)</code> and <code>AMEX EVERYDAY(SM) PREFERRED CREDIT CARD</code>, both classified under the <code>CPS</code> portfolio.</span></div>
+            <div class="log-bullet"><span class="k">Quoted from the reports:</span></div>
+            <pre class="log-quote">| July'2025 | BLUE CASH PREFERRED(SM)              | Lending | CPS | 1,000 | 0.0 | … |
+| July'2025 | AMEX EVERYDAY(SM) PREFERRED CREDIT CARD | Lending | CPS | 1,000 | 0.0 | … |</pre>
+          </div>
+
+          <!-- FINAL SYNTHESIS -->
+          <div class="log-block">
+            <div class="log-bracket synth">
+              <span class="lb-tag">[ Final Synthesis ]</span>
+              <span class="lb-meta">synthesis · 0.16s</span>
+            </div>
+            <div class="log-final">
+              <span class="answer-tag">Answer</span>
+              <p>
+                The customer has <code>2</code> consumer cards: <strong>BLUE CASH PREFERRED(SM)</strong> and <strong>AMEX EVERYDAY(SM) PREFERRED CREDIT CARD</strong>, both under the <code>CPS</code> (Consumer Products Services) portfolio. Confirmed by both the live <code>crossbu_cards</code> data and the curated <code>crossbu_exp_0.md</code> report.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="logs-actions">
+          <button class="btn">Compare Path</button>
+          <button class="btn">Export Trace</button>
+          <button class="btn flag">Flag Issue</button>
+        </div>
+      </section>
+
+    </aside>
+
+  </div>
+</div>
+
+<script>
+  // node click → highlight (scoped so we don't accidentally tie it to non-existent UI)
+  document.querySelectorAll('.node').forEach(n => {
+    n.addEventListener('click', () => {
+      document.querySelectorAll('.node').forEach(x => x.classList.remove('selected'));
+      n.classList.add('selected');
+    });
+  });
+
+  // turn click → focus
+  document.querySelectorAll('.turn').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.turn').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────
+  // Resizable panels — drag to adjust, double-click to reset
+  // ────────────────────────────────────────────────────────────
+  function setupResizer({ handle, container, axis, varName, beforeSelector, minBefore, minAfter }) {
+    let startPos = 0, startSize = 0, containerSize = 0;
+
+    const onMove = (e) => {
+      const pos = (axis === 'x' ? e.clientX : e.clientY);
+      const delta = pos - startPos;
+      const maxSize = containerSize - minAfter - 4; // 4px = resizer track
+      let newSize = startSize + delta;
+      newSize = Math.max(minBefore, Math.min(maxSize, newSize));
+      container.style.setProperty(varName, newSize + 'px');
+    };
+
+    const onUp = () => {
+      handle.classList.remove('dragging');
+      document.body.classList.remove('body-resizing-x', 'body-resizing-y');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      handle.classList.add('dragging');
+      document.body.classList.add(axis === 'x' ? 'body-resizing-x' : 'body-resizing-y');
+
+      const cRect = container.getBoundingClientRect();
+      containerSize = (axis === 'x' ? cRect.width : cRect.height);
+
+      const before = container.querySelector(beforeSelector);
+      const bRect = before.getBoundingClientRect();
+      startSize = (axis === 'x' ? bRect.width : bRect.height);
+      startPos = (axis === 'x' ? e.clientX : e.clientY);
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    handle.addEventListener('dblclick', () => {
+      container.style.removeProperty(varName);
+    });
+  }
+
+  setupResizer({
+    handle: document.querySelector('.resizer-h'),
+    container: document.querySelector('.workspace'),
+    axis: 'x',
+    varName: '--col-left',
+    beforeSelector: '.left-col',
+    minBefore: 520,   // chat panel min width
+    minAfter: 540,    // right column min width
+  });
+
+  setupResizer({
+    handle: document.querySelector('.resizer-v'),
+    container: document.querySelector('.right-stack'),
+    axis: 'y',
+    varName: '--row-top',
+    beforeSelector: '.logs-section',
+    minBefore: 200,   // logs min height
+    minAfter: 200,    // flow min height
+  });
+</script>
+
+</body>
+</html>
