@@ -121,15 +121,20 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
       : 'idle'
 
   /** Has the chat agent given the green light?
-   *  - true  → orchestrator + branches + synthesis are revealed
-   *  - false → either still screening (no question_check yet) or rejected.
-   *  We also unlock if downstream activity is somehow already present (defensive). */
+   *  - explicitly rejected → ALWAYS stay compact (no orchestrator/branches/synth),
+   *    regardless of whether the server emitted a `final` event with the
+   *    rejection text. The reject branch in server.py emits final + agent_message
+   *    too, so we can't use `turn.final` as a "the orchestrator ran" signal.
+   *  - explicitly passed → expand to the full L-shape.
+   *  - still screening (no question_check yet) → stay compact, but defensively
+   *    expand if downstream activity is somehow already present (e.g. event
+   *    ordering anomaly). */
+  const chatRejected = turn.question_check?.passed === false
   const chatPassed = turn.question_check?.passed === true
   const orchHasActivity =
     (turn.team_plan?.length ?? 0) > 0 ||
-    turn.final !== undefined ||
     turn.agent_runs.length > 0
-  const showOrchStage = chatPassed || orchHasActivity
+  const showOrchStage = !chatRejected && (chatPassed || orchHasActivity)
 
   const handleJumpToChat = () => {
     const sel = `[data-turn-id="${turn.turn_id}"][data-role="reviewer"]`

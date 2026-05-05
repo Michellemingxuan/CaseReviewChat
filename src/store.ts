@@ -6,7 +6,7 @@ const STORAGE_KEY = 'case-review-threads-v6'
 
 export const useStore = create<StoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       caseList: { consumer: [], commercial: [] } as CaseList,
       activeCase: null,
       threads: {},
@@ -39,7 +39,11 @@ export const useStore = create<StoreState>()(
         // drop that reviewer message and everything after it.
         // Returns the reviewer's text so the caller can prefill the input
         // box for editing — empty string if nothing to rewind to.
-        const state = useStore.getState()
+        // Use zustand's `get()` rather than `useStore.getState()` here:
+        // referencing `useStore` inside its own initializer creates a
+        // circular type reference that makes TS infer the whole store as
+        // `any`, breaking every `useStore((st) => …)` selector elsewhere.
+        const state = get()
         const thread = state.threads[caseId] ?? []
         const clickedIdx = thread.findIndex((m) => m.id === messageId)
         if (clickedIdx === -1) return ''
