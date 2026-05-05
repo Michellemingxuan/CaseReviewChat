@@ -19,6 +19,28 @@
 
 .reviewer .label { text-align: right; }
 
+.hint {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--amex-blue);
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.wrapper:hover .hint { opacity: 0.7; }
+
+.clickable { cursor: pointer; }
+.clickable:hover {
+  border-color: var(--amex-blue) !important;
+  box-shadow: 0 2px 10px rgba(1, 111, 208, 0.18) !important;
+}
+
+.active .bubble {
+  border-color: var(--amex-blue) !important;
+  box-shadow: 0 0 0 2px rgba(1, 111, 208, 0.25), 0 2px 10px rgba(1, 111, 208, 0.15) !important;
+}
+
 .row {
   display: flex;
   align-items: flex-end;

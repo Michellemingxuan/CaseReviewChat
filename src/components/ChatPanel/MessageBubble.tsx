@@ -7,33 +7,57 @@ import styles from './MessageBubble.module.css'
 type Props = {
   message: Message
   onRewind: (messageId: string) => void
+  onSelectTurn?: (turnId: string) => void
+  isActive?: boolean
 }
 
 function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export function MessageBubble({ message, onRewind }: Props) {
+export function MessageBubble({ message, onRewind, onSelectTurn, isActive }: Props) {
   const [hovered, setHovered] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
   const isAgent = message.role === 'agent'
+  const clickable = isAgent && !!message.turn_id && !!onSelectTurn
+
+  const handleBubbleClick = () => {
+    if (!clickable) return
+    onSelectTurn!(message.turn_id!)
+  }
 
   return (
     <div
-      className={`${styles.wrapper} ${isAgent ? styles.agent : styles.reviewer}`}
+      className={`${styles.wrapper} ${isAgent ? styles.agent : styles.reviewer} ${isActive ? styles.active : ''}`}
+      data-turn-id={message.turn_id || undefined}
+      data-role={message.role}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className={styles.label}>{isAgent ? 'Agent' : 'Reviewer'}</div>
+      <div className={styles.label}>
+        {isAgent ? 'Agent' : 'Reviewer'}
+        {clickable && <span className={styles.hint}>· click to inspect</span>}
+      </div>
       <div className={styles.row}>
-        <div className={styles.bubble}>
+        <div
+          className={`${styles.bubble} ${clickable ? styles.clickable : ''}`}
+          onClick={handleBubbleClick}
+          role={clickable ? 'button' : undefined}
+          tabIndex={clickable ? 0 : undefined}
+          onKeyDown={(e) => {
+            if (clickable && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault()
+              handleBubbleClick()
+            }
+          }}
+        >
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
         </div>
         {hovered && (
           <button
             className={styles.rewindBtn}
-            onClick={() => setShowConfirm(true)}
+            onClick={(e) => { e.stopPropagation(); setShowConfirm(true) }}
             title="Rewind to this point"
           >
             ↩
@@ -46,11 +70,14 @@ export function MessageBubble({ message, onRewind }: Props) {
           <div className={styles.popoverActions}>
             <button
               className={styles.confirmBtn}
-              onClick={() => { setShowConfirm(false); onRewind(message.id) }}
+              onClick={(e) => { e.stopPropagation(); setShowConfirm(false); onRewind(message.id) }}
             >
               Confirm
             </button>
-            <button className={styles.cancelBtn} onClick={() => setShowConfirm(false)}>
+            <button
+              className={styles.cancelBtn}
+              onClick={(e) => { e.stopPropagation(); setShowConfirm(false) }}
+            >
               Cancel
             </button>
           </div>

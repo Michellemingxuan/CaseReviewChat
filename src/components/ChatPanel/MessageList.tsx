@@ -8,9 +8,11 @@ type Props = {
   messages: Message[]
   showTyping: boolean
   onRewind: (messageId: string) => void
+  onSelectTurn?: (turnId: string) => void
+  activeTurnId?: string | null
 }
 
-export function MessageList({ messages, showTyping, onRewind }: Props) {
+export function MessageList({ messages, showTyping, onRewind, onSelectTurn, activeTurnId }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -20,7 +22,13 @@ export function MessageList({ messages, showTyping, onRewind }: Props) {
   return (
     <div className={styles.list}>
       {messages.map((msg) => (
-        <MessageBubble key={msg.id} message={msg} onRewind={onRewind} />
+        <MessageBubble
+          key={msg.id}
+          message={msg}
+          onRewind={onRewind}
+          onSelectTurn={onSelectTurn}
+          isActive={!!msg.turn_id && msg.turn_id === activeTurnId}
+        />
       ))}
       {showTyping && (
         <div className={styles.typingRow}>

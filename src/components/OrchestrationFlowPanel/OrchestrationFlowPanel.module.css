@@ -1,0 +1,570 @@
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #F4F6FA 0%, #EEF1F7 100%);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.head {
+  padding: 10px 22px 6px;
+  border-bottom: 1px solid #E2E7F0;
+  flex-shrink: 0;
+  background: #F4F6FA;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0A1F44;
+  margin: 0;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.statusPill.done       { background: #E5F4EB; color: #2D8F5C; border-color: #B5E2C7; }
+.statusPill.streaming  { background: #E8F1FB; color: #006FCF; border-color: #B6D6F2; }
+.statusPill.error      { background: #FCE7E7; color: #C53030; border-color: #F2BCBC; }
+.statusPill.idle       { background: white; color: #5B6B85; border-color: #E2E7F0; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.statusPill.streaming .dot { animation: pulse 1.4s infinite; }
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,111,207,0.6); }
+  60%     { box-shadow: 0 0 0 6px rgba(0,111,207,0); }
+}
+
+.empty {
+  padding: 32px 22px;
+  color: #5B6B85;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+.empty strong { display: block; color: #0A1F44; margin-bottom: 4px; font-weight: 600; }
+
+.canvas {
+  flex: 1;
+  padding: 4px 12px 10px;
+  overflow: auto;
+  min-height: 0;
+}
+.glass {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.7));
+  border: 1px solid #E2E7F0;
+  border-radius: 10px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 12px 32px -12px rgba(10,31,68,0.18), 0 4px 12px -4px rgba(10,31,68,0.06);
+  overflow: hidden;
+  /* Branches stack = 220 + 10 (gap) + 220 = 450, plus padding = 476.
+     This min-height ensures the entire flow (chain, branches, synthesis)
+     fits without the canvas needing to scroll. */
+  min-height: 480px;
+}
+.glass::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,111,207,0.4), transparent);
+}
+.gridBg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(10,31,68,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10,31,68,0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse at center, black 50%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 50%, transparent 80%);
+}
+
+/* Centered flow: vertical chain on the left (Question → Chat → Orch) sits
+   at the vertical center; the orchestrator forks into two parallel branches
+   on the right, both feeding the Synthesis node. */
+.flow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Left column: a flex column with two equal-flex spacers above/below the
+   Orchestrator, so the Orchestrator's vertical CENTER sits at flow center
+   (where the fork bifurcation begins). The upper chain (Question → Chat)
+   stacks within the upper spacer, anchored to its bottom so it visually
+   leads down into the orchestrator. */
+.leftWrapper {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  flex: 0 0 220px;
+  min-width: 200px;
+}
+/* Upper half is slightly larger than lower so the chain → orchestrator sits
+   a touch below the canvas's vertical center, giving the two paths a bit of
+   visual lead-in space above and aligning the orchestrator with the centre
+   of the slightly-shorter branches. */
+.upperHalf {
+  flex: 1.35 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.lowerHalf {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.verticalChain {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.downArrow {
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #CBD5E0;
+}
+.downArrow.active { color: #006FCF; }
+.downArrow.done   { color: #2D8F5C; opacity: 0.7; }
+.downArrow.error  { color: #C53030; }
+.downArrow svg { display: block; }
+
+/* Question card — first node in the vertical chain. */
+.questionCard {
+  background: white;
+  border: 1px solid #E2E7F0;
+  border-top: 2px solid #00175A;
+  border-radius: 8px;
+  padding: 9px 11px;
+  box-shadow: 0 1px 2px rgba(10,31,68,0.05);
+}
+.questionHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.questionLabel {
+  flex: 1;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #00175A;
+}
+.chatJump {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: #F4F6FA;
+  border: 1px solid #E2E7F0;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #006FCF;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+}
+.chatJump:hover {
+  background: #006FCF;
+  color: white;
+  border-color: #006FCF;
+}
+.questionText {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 11.5px;
+  font-style: italic;
+  color: #2C3A55;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.questionText::before { content: '“'; color: #8593AB; }
+.questionText::after  { content: '”'; color: #8593AB; }
+
+/* Horizontal flow on the right of the orchestrator. */
+.horizontalFlow {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Branches container (now arranged horizontally as a column with 2 branch boxes stacked). */
+.branchStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+.branch {
+  background: rgba(255,255,255,0.55);
+  border: 1.5px solid #CBD5E0;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  position: relative;
+  /* Fixed height — the outer frame never grows or shrinks regardless of how
+     many agents land in it. Content (placeholder OR nodes) scrolls inside
+     `.nodeStack`. This keeps Synthesis position, fork-arm geometry, and the
+     left vertical chain perfectly stable from the moment a turn opens. */
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s ease;
+}
+.branchHeader { flex-shrink: 0; }
+/* ── Report branch — teal identity ───────────────────────────────────── */
+.branch.report {
+  border-color: rgba(31,138,138,0.55);
+  border-left-color: #1F8A8A;
+  background: linear-gradient(180deg, rgba(31,138,138,0.10) 0%, rgba(221,242,242,0.45) 100%);
+}
+.branch.report .node {
+  border-left: 2px solid rgba(31,138,138,0.5);
+}
+/* ── Team branch — indigo identity, distinct from chat/orch's plain blue */
+.branch.team {
+  border-color: rgba(91,110,225,0.55);
+  border-left-color: #5B6EE1;
+  background: linear-gradient(180deg, rgba(91,110,225,0.10) 0%, rgba(238,241,253,0.55) 100%);
+}
+.branch.team .node {
+  border-left: 2px solid rgba(91,110,225,0.5);
+}
+.branch.failed {
+  border-color: rgba(197,48,48,0.55) !important;
+  border-left-color: #C53030 !important;
+  background: rgba(252,231,231,0.55) !important;
+}
+.branch.failed .branchLabel { color: #C53030 !important; }
+.branch.failed .node {
+  border-left-color: rgba(197,48,48,0.5) !important;
+}
+
+.branchHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.branchLabel {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #0A1F44;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.branchLabel::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+.branchLabel.report { color: #0F6E6E; }
+.branchLabel.team   { color: #4338CA; }
+.branchCount {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  color: #5B6B85;
+  background: white;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid #E2E7F0;
+}
+.nodeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.nodeStack::-webkit-scrollbar { width: 5px; }
+.nodeStack::-webkit-scrollbar-track { background: transparent; }
+.nodeStack::-webkit-scrollbar-thumb { background: rgba(10,31,68,0.18); border-radius: 3px; }
+.nodeStack::-webkit-scrollbar-thumb:hover { background: rgba(10,31,68,0.32); }
+
+/* Fork SVG — bifurcation between vertical chain and the two branches,
+   and convergence between branches and Synthesis. Stretches with the
+   branch stack height (`align-self: stretch`) so the fork tips line up
+   with each branch's vertical center. */
+.fork {
+  flex: 0 0 38px;
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.forkSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.forkPath {
+  fill: none;
+  stroke: #CBD5E0;
+  stroke-width: 1.4;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+  /* Smoothly transition between idle/active/done — no flash when the
+     status changes. */
+  transition: stroke 0.3s ease, opacity 0.3s ease;
+}
+.forkPath.active { stroke: #006FCF; stroke-dasharray: 4 4; }
+.forkPath.done   { stroke: #2D8F5C; stroke-dasharray: 0; opacity: 0.75; }
+.forkPath.error  { stroke: #C53030; stroke-dasharray: 4 4; opacity: 0.9; }
+
+/* Branch-tinted arms — keep teal/indigo identity throughout the connectors.
+   Defined AFTER the status rules so source-order cascade wins on `stroke`,
+   leaving `stroke-dasharray` and `opacity` to communicate progress. */
+.forkPath.reportArm { stroke: #1F8A8A; opacity: 0.45; }
+.forkPath.reportArm.active { opacity: 0.9; }
+.forkPath.reportArm.done   { stroke: #1F8A8A; stroke-dasharray: 0; opacity: 0.85; }
+.forkPath.reportArm.error  { stroke: #C53030; opacity: 0.9; }
+
+.forkPath.teamArm { stroke: #5B6EE1; opacity: 0.45; }
+.forkPath.teamArm.active { opacity: 0.9; }
+.forkPath.teamArm.done   { stroke: #5B6EE1; stroke-dasharray: 0; opacity: 0.85; }
+.forkPath.teamArm.error  { stroke: #C53030; opacity: 0.9; }
+
+/* Node — icon and name now share row 1 (icon left, name right). */
+.node {
+  background: white;
+  border: 1px solid #E2E7F0;
+  border-radius: 8px;
+  padding: 8px 11px;
+  box-shadow: 0 1px 2px rgba(10,31,68,0.05);
+  position: relative;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.2s ease;
+  min-width: 0;
+  /* New nodes fade and slide in instead of popping — the layout above
+     stays put because we've reserved space; only this node's contents
+     animate from invisible to visible. */
+  animation: nodeFadeIn 0.28s ease-out;
+}
+@keyframes nodeFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.node.done       { border-top: 2px solid #2D8F5C; }
+.node.running    { border-top: 2px solid #006FCF; }
+.node.idle       { border-top: 2px solid #CBD5E0; }
+.node.error {
+  border-top: 2px solid #C53030;
+  border-color: rgba(197,48,48,0.45);
+  background: linear-gradient(180deg, #FFFFFF 0%, #FEF5F5 100%);
+}
+.node.error .nodeName { color: #8B1A1A; }
+
+.nodeRow1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+.nodeMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.nodeRoleInline {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: #5B6B85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.nodeRoleInline::before {
+  content: '·';
+  margin-right: 5px;
+  color: #A0AEC0;
+}
+.nodeIcon {
+  width: 22px; height: 22px; border-radius: 5px;
+  background: #E8F1FB; color: #006FCF;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nodeIcon.purple { background: #F0E9FA; color: #7048B0; }
+.nodeIcon.teal   { background: #DDF2F2; color: #1F8A8A; }
+.nodeIcon.amber  { background: #FCF1D8; color: #B7791F; }
+.nodeIcon.navy   { background: #DCE6FA; color: #00175A; }
+
+.nodeName {
+  flex: 1;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0F1B33;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.nodeStatus {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #A0AEC0;
+  flex-shrink: 0;
+}
+.nodeStatus.done    { background: #2D8F5C; }
+.nodeStatus.running { background: #006FCF; animation: nodepulse 1.4s infinite; }
+.nodeStatus.idle    { background: #CBD5E0; }
+.nodeStatus.error   { background: #C53030; }
+@keyframes nodepulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,111,207,0.5); }
+  60%     { box-shadow: 0 0 0 7px rgba(0,111,207,0); }
+}
+
+/* Stacked role — used for fixed nodes (Chat Agent, Orchestrator, Synthesis)
+   where the role is a fixed label, not a per-call sub-instruction. */
+.nodeRole {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10px;
+  color: #5B6B85;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subQuestion {
+  margin-top: 6px;
+  padding: 7px 10px;
+  background: rgba(0,111,207,0.06);
+  border-left: 2px solid rgba(0,111,207,0.4);
+  border-radius: 0 4px 4px 0;
+  /* Sans-serif at a slightly larger body size for easier scanning — italic
+     serif read as decorative; this reads as instructional. */
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11.5px;
+  font-weight: 400;
+  font-style: normal;
+  color: #2C3A55;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  animation: fadeIn 0.25s ease-out;
+}
+.subQuestion::before {
+  content: '› ';
+  color: #79BDFF;
+  font-weight: 600;
+  margin-right: 1px;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.errorDetail {
+  font-size: 9.5px;
+  color: #C53030;
+  font-weight: 600;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.errorDetail::before {
+  content: '⚠';
+  font-size: 11px;
+}
+
+.nodeFoot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed #E2E7F0;
+  font-size: 9.5px;
+  color: #8593AB;
+}
+.nodeTime {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color: #2D3748;
+  font-weight: 500;
+}
+
+.nodePlaceholder {
+  padding: 12px 11px;
+  background: rgba(255,255,255,0.5);
+  border: 1px dashed #E2E7F0;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #8593AB;
+  text-align: center;
+  font-style: italic;
+  /* Fill the nodeStack so empty branches look intentionally sized. When
+     the placeholder is swapped for a real node, the parent's height stays
+     fixed at 220px and only the inner content changes. */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Synthesis sits at the right end as the wider column. */
+.synthCol {
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
+}

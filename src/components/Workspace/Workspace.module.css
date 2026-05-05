@@ -1,0 +1,99 @@
+/* Workspace — grid that hosts: sidebar | chat | right-stack (audit + flow) */
+
+.workspace {
+  display: grid;
+  grid-template-columns: var(--col-sidebar, 240px) 4px var(--col-chat, 1.4fr) 4px var(--col-right, 1fr);
+  height: 100vh;
+  overflow: hidden;
+  background: #F4F6FA;
+}
+
+.col {
+  overflow: hidden;
+  min-height: 0;
+  background: #F4F6FA;
+  display: flex;
+  flex-direction: column;
+}
+
+.rightStack {
+  display: grid;
+  grid-template-rows: var(--row-trace, 1fr) 4px var(--row-flow, 1fr);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.rightSection {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Bottom panel (orchestration flow) — placeholder for v1 */
+.flowPlaceholder {
+  height: 100%;
+  background: linear-gradient(180deg, #F4F6FA 0%, #EEF1F7 100%);
+  border-top: 1px solid #E2E7F0;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.flowEyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8593AB;
+}
+
+.flowTitle {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  color: #0A1F44;
+  margin: 0;
+  font-weight: 700;
+}
+
+.flowBody {
+  font-size: 13px;
+  color: #5B6B85;
+  line-height: 1.5;
+  background: white;
+  border: 1px solid #E2E7F0;
+  border-left: 3px solid #006FCF;
+  padding: 14px 16px;
+  border-radius: 4px;
+}
+
+/* Resizers */
+.resizer {
+  background: #E2E7F0;
+  position: relative;
+  z-index: 8;
+  transition: background 0.15s;
+}
+.resizerH { cursor: col-resize; }
+.resizerV { cursor: row-resize; }
+.resizer:hover, .resizer.dragging { background: #006FCF; }
+.resizer::after {
+  content: '';
+  position: absolute;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.85);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.resizerH::after {
+  width: 2px; height: 32px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+.resizerV::after {
+  width: 32px; height: 2px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+.resizer:hover::after, .resizer.dragging::after { opacity: 1; }

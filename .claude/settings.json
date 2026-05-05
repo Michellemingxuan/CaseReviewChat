@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(open \"/Users/mingxuanliu/Library/CloudStorage/GoogleDrive-mingxuan99michelle@gmail.com/My Drive/Projs/CaseReviewChat/agentic-qa.html\")",
-      "Bash(open \"/Users/mingxuanliu/Library/CloudStorage/GoogleDrive-mingxuan99michelle@gmail.com/My Drive/Projs/CaseReviewChat/agentic-collab.html\")"
+      "Bash(open \"/Users/mingxuanliu/Library/CloudStorage/GoogleDrive-mingxuan99michelle@gmail.com/My Drive/Projs/CaseReviewChat/agentic-collab.html\")",
+      "Read(//Users/mingxuanliu/Library/CloudStorage/GoogleDrive-mingxuan99michelle@gmail.com/My Drive/Projs/AgenticSys_v2/**)"
     ]
   }
 }

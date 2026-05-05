@@ -4,12 +4,13 @@ import { useSSE } from '../hooks/useSSE'
 import { useStore } from '../store'
 import type { Message } from '../types'
 
-// Minimal EventSource mock
+// Minimal EventSource mock supporting both onmessage setter and addEventListener
 class MockEventSource {
   url: string
   onmessage: ((e: MessageEvent) => void) | null = null
   onerror: (() => void) | null = null
   onopen: (() => void) | null = null
+  listeners: Record<string, Array<(e: MessageEvent) => void>> = {}
   close = vi.fn()
   static instances: MockEventSource[] = []
 
@@ -18,12 +19,21 @@ class MockEventSource {
     MockEventSource.instances.push(this)
   }
 
-  emit(data: Message) {
-    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent)
+  addEventListener(name: string, fn: (e: MessageEvent) => void) {
+    if (!this.listeners[name]) this.listeners[name] = []
+    this.listeners[name].push(fn)
   }
 
-  emitRaw(raw: string) {
-    this.onmessage?.({ data: raw } as MessageEvent)
+  emit(data: Message, eventName: string = 'message') {
+    const ev = { data: JSON.stringify(data) } as MessageEvent
+    if (eventName === 'message') this.onmessage?.(ev)
+    this.listeners[eventName]?.forEach((fn) => fn(ev))
+  }
+
+  emitRaw(raw: string, eventName: string = 'message') {
+    const ev = { data: raw } as MessageEvent
+    if (eventName === 'message') this.onmessage?.(ev)
+    this.listeners[eventName]?.forEach((fn) => fn(ev))
   }
 
   open() {
@@ -35,9 +45,11 @@ beforeEach(() => {
   MockEventSource.instances = []
   vi.stubGlobal('EventSource', MockEventSource)
   useStore.setState({
-    caseList: [],
+    caseList: { consumer: [], commercial: [] },
     activeCase: null,
     threads: {},
+    turns: {},
+    activeTurnId: {},
     sseStatus: 'disconnected',
     unread: new Set(),
   })

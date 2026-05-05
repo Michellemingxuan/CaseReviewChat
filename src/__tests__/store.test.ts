@@ -34,13 +34,33 @@ describe('store', () => {
     expect(useStore.getState().threads['C-001']).toHaveLength(1)
   })
 
-  it('rewindThread truncates thread after the given messageId (inclusive)', () => {
-    useStore.getState().appendMessage('C-001', msg('m1', 'agent'))
-    useStore.getState().appendMessage('C-001', msg('m2', 'reviewer'))
-    useStore.getState().appendMessage('C-001', msg('m3', 'agent'))
-    useStore.getState().rewindThread('C-001', 'm1')
-    expect(useStore.getState().threads['C-001']).toHaveLength(1)
-    expect(useStore.getState().threads['C-001'][0].id).toBe('m1')
+  it('rewindThread drops the owning reviewer + everything after, returns reviewer text', () => {
+    // Thread shape: r1 → a1 → r2 → a2.  Rewinding from a2 should walk back
+    // to r2 (the reviewer that owns this turn) and drop r2 + a2 from the
+    // thread, leaving [r1, a1]. The reviewer's text is returned so the
+    // caller can prefill the input box.
+    useStore.getState().appendMessage('C-001', msg('r1', 'reviewer'))
+    useStore.getState().appendMessage('C-001', msg('a1', 'agent'))
+    useStore.getState().appendMessage('C-001', msg('r2', 'reviewer'))
+    useStore.getState().appendMessage('C-001', msg('a2', 'agent'))
+
+    const text = useStore.getState().rewindThread('C-001', 'a2')
+    expect(text).toBe('text-r2')
+    const thread = useStore.getState().threads['C-001']
+    expect(thread).toHaveLength(2)
+    expect(thread.map((m) => m.id)).toEqual(['r1', 'a1'])
+  })
+
+  it('rewindThread on a reviewer bubble drops that reviewer too', () => {
+    // Click rewind directly on a reviewer bubble: drop it + everything after.
+    useStore.getState().appendMessage('C-001', msg('r1', 'reviewer'))
+    useStore.getState().appendMessage('C-001', msg('a1', 'agent'))
+    useStore.getState().appendMessage('C-001', msg('r2', 'reviewer'))
+
+    const text = useStore.getState().rewindThread('C-001', 'r2')
+    expect(text).toBe('text-r2')
+    expect(useStore.getState().threads['C-001'].map((m) => m.id))
+      .toEqual(['r1', 'a1'])
   })
 
   it('setCaseList sets caseList', () => {
