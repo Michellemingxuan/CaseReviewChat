@@ -78,8 +78,18 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
 
       <div className={s.stream}>
         <QuestionCheckBlock turn={turn} />
-        <TeamConstructionBlock turn={turn} />
-        {turn.agent_runs.map((r) => <AgentBlock key={r.call_id} run={r} />)}
+        {turn.final?.flags?.includes('cached_answer_replay') ? (
+          // Cached-replay short-circuit — no orchestrator / specialist work
+          // happened, so skip Team Construction + per-agent blocks. The
+          // [Final Synthesis] block (rendered below) will show the cached
+          // answer directly with the cached_answer_replay flag visible.
+          <CachedReplayBlock />
+        ) : (
+          <>
+            <TeamConstructionBlock turn={turn} />
+            {turn.agent_runs.map((r) => <AgentBlock key={r.call_id} run={r} />)}
+          </>
+        )}
         <FinalSynthesisBlock turn={turn} />
       </div>
     </div>
@@ -124,6 +134,23 @@ function QuestionCheckBlock({ turn }: { turn: Turn }) {
           </p>
         </>
       )}
+    </div>
+  )
+}
+
+function CachedReplayBlock() {
+  return (
+    <div className={s.block}>
+      <div className={`${s.bracket} ${s.team}`}>
+        <span className={s.tag}>[ Cached Answer ]</span>
+        <span className={s.meta}>orchestrator skipped</span>
+      </div>
+      <p className={`${s.line} ${s.dim}`}>
+        This question is identical to one already answered earlier in this
+        session. The orchestrator was not invoked; no report agent, specialists,
+        or general-specialist review ran for this turn. The Final Synthesis
+        below shows the previously-produced answer verbatim.
+      </p>
     </div>
   )
 }

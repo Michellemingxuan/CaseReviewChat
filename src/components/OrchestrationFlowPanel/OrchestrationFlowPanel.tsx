@@ -38,6 +38,56 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
     )
   }
 
+  // Cached-answer replay short-circuit. When the server replayed a prior
+  // identical question's answer (qa_cache hit), no orchestrator / specialist
+  // / synthesis work happened — render a slim flow that reflects reality
+  // (Question → Chat Agent → Cached Answer) instead of the full L-shape.
+  const isCachedReplay = !!turn.final?.flags?.includes('cached_answer_replay')
+  if (isCachedReplay) {
+    return (
+      <div className={s.panel}>
+        <div className={s.head}>
+          <h3 className={s.title}>Orchestration Flow</h3>
+          <StatusPill turn={turn} />
+        </div>
+        <div className={s.canvas}>
+          <div className={`${s.glass} ${s.expanded}`}>
+            <div className={s.gridBg} />
+            <div className={s.flow}>
+              <div className={s.leftWrapper}>
+                <div className={s.compactChain}>
+                  <div className={s.questionCard}>
+                    <div className={s.questionHead}>
+                      <span className={s.questionLabel}>Reviewer Question</span>
+                    </div>
+                    <div className={s.questionText} title={turn.question}>{turn.question}</div>
+                  </div>
+                  <DownArrow status="done" />
+                  <Node
+                    name="Chat Agent"
+                    role="Screen + scope check"
+                    status="done"
+                    detail="passed"
+                    roleStacked
+                  />
+                  <DownArrow status="done" />
+                  <Node
+                    name="Cached Answer"
+                    role="reused from a prior identical question — no fresh data pull"
+                    status="done"
+                    iconClass={s.purple}
+                    detail={turn.duration_ms ? `${(turn.duration_ms / 1000).toFixed(2)}s` : ''}
+                    roleStacked
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Partition the orchestrator's tool calls into two branches.
   const allCalls: ToolCall[] = turn.team_plan ?? []
   const reportCalls = allCalls.filter((c) => c.tool === 'report_agent')
@@ -70,6 +120,17 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
       : (reportStatus === 'done' || teamStatus === 'done' || synthStatus === 'running') ? 'active'
       : 'idle'
 
+  /** Has the chat agent given the green light?
+   *  - true  → orchestrator + branches + synthesis are revealed
+   *  - false → either still screening (no question_check yet) or rejected.
+   *  We also unlock if downstream activity is somehow already present (defensive). */
+  const chatPassed = turn.question_check?.passed === true
+  const orchHasActivity =
+    (turn.team_plan?.length ?? 0) > 0 ||
+    turn.final !== undefined ||
+    turn.agent_runs.length > 0
+  const showOrchStage = chatPassed || orchHasActivity
+
   const handleJumpToChat = () => {
     const sel = `[data-turn-id="${turn.turn_id}"][data-role="reviewer"]`
     const target = document.querySelector(sel) as HTMLElement | null
@@ -88,14 +149,56 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
       </div>
 
       <div className={s.canvas}>
-        <div className={s.glass}>
+        <div className={`${s.glass} ${showOrchStage ? s.expanded : ''}`}>
           <div className={s.gridBg} />
           <div className={s.flow}>
 
-            {/* ── Left column: upper-chain → Orchestrator (centered vertically) ── */}
+            {/* ── Left column ── */}
             <div className={s.leftWrapper}>
-              <div className={s.upperHalf}>
-                <div className={s.verticalChain}>
+              {showOrchStage ? (
+                <>
+                  <div className={s.upperHalf}>
+                    <div className={s.verticalChain}>
+                      <div className={s.questionCard}>
+                        <div className={s.questionHead}>
+                          <span className={s.questionLabel}>Reviewer Question</span>
+                          <button className={s.chatJump} onClick={handleJumpToChat} title="Jump to this question in the chat">
+                            <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M8 2v10M4 8l4 4 4-4" />
+                            </svg>
+                            chat
+                          </button>
+                        </div>
+                        <div className={s.questionText} title={turn.question}>{turn.question}</div>
+                      </div>
+
+                      <DownArrow status={chatStatus === 'done' ? 'done' : chatStatus === 'running' ? 'active' : 'idle'} />
+
+                      <Node
+                        name="Chat Agent"
+                        role="Screen + scope check"
+                        status={chatStatus}
+                        detail={turn.question_check ? (turn.question_check.passed ? 'passed' : 'rejected') : ''}
+                        roleStacked
+                      />
+
+                      <DownArrow status={chatStatus === 'done' ? (orchStatus === 'done' ? 'done' : orchStatus === 'running' ? 'active' : 'idle') : 'idle'} />
+                    </div>
+                  </div>
+
+                  {/* Orchestrator is the center pivot — fork bifurcates from its right side */}
+                  <Node
+                    name="Orchestrator"
+                    role={allCalls.length > 0 ? `Dispatched ${allCalls.length}` : 'Planning…'}
+                    status={orchStatus}
+                    detail=""
+                    roleStacked
+                  />
+
+                  <div className={s.lowerHalf} />
+                </>
+              ) : (
+                <div className={s.compactChain}>
                   <div className={s.questionCard}>
                     <div className={s.questionHead}>
                       <span className={s.questionLabel}>Reviewer Question</span>
@@ -115,26 +218,19 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                     name="Chat Agent"
                     role="Screen + scope check"
                     status={chatStatus}
-                    detail={turn.question_check ? (turn.question_check.passed ? 'passed' : 'rejected') : ''}
+                    detail={
+                      turn.question_check
+                        ? (turn.question_check.passed ? 'passed' : (turn.question_check.reason || 'rejected'))
+                        : ''
+                    }
                     roleStacked
                   />
-
-                  <DownArrow status={chatStatus === 'done' ? (orchStatus === 'done' ? 'done' : orchStatus === 'running' ? 'active' : 'idle') : 'idle'} />
                 </div>
-              </div>
-
-              {/* Orchestrator is the center pivot — fork bifurcates from its right side */}
-              <Node
-                name="Orchestrator"
-                role={allCalls.length > 0 ? `Dispatched ${allCalls.length}` : 'Planning…'}
-                status={orchStatus}
-                detail=""
-                roleStacked
-              />
-
-              <div className={s.lowerHalf} />
+              )}
             </div>
 
+            {showOrchStage && (
+            <>
             {/* Fork — orchestrator bifurcates to Report + Team branches */}
             <ForkOut
               topStatus={
@@ -250,6 +346,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                 roleStacked
               />
             </div>
+            </>
+            )}
 
           </div>
         </div>

@@ -71,9 +71,13 @@
   padding: 14px 14px 12px;
   box-shadow: 0 12px 32px -12px rgba(10,31,68,0.18), 0 4px 12px -4px rgba(10,31,68,0.06);
   overflow: hidden;
-  /* Branches stack = 220 + 10 (gap) + 220 = 450, plus padding = 476.
-     This min-height ensures the entire flow (chain, branches, synthesis)
-     fits without the canvas needing to scroll. */
+  /* Compact baseline: just question → chat agent. Smaller until the
+     chat agent confirms pass and the orchestrator stage is unlocked. */
+  min-height: 260px;
+  transition: min-height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass.expanded {
+  /* Expanded: branches stack = 220 + 10 + 220 = 450 + padding = 476. */
   min-height: 480px;
 }
 .glass::before {
@@ -143,6 +147,18 @@
   gap: 6px;
 }
 
+/* Compact left column — used before the chat agent has confirmed pass.
+   No upper/lower halves, no orchestrator. Just chain centered vertically. */
+.compactChain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
 .downArrow {
   height: 18px;
   display: flex;
@@ -209,6 +225,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
