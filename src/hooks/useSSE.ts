@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { openSSE } from '../api'
 import { useStore } from '../store'
-import type { Message, Turn } from '../types'
+import type { ChartInfo, Message, Turn } from '../types'
 
 const RECONNECT_DELAY_MS = 2000
 
@@ -20,6 +20,7 @@ export function useSSE(caseId: string | null) {
   const startTurn = useStore((s) => s.startTurn)
   const patchTurn = useStore((s) => s.patchTurn)
   const upsertAgentRun = useStore((s) => s.upsertAgentRun)
+  const upsertChart = useStore((s) => s.upsertChart)
 
   const esRef = useRef<EventSource | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -140,6 +141,35 @@ export function useSSE(caseId: string | null) {
         })
       })
 
+      // Chart events fire from the server's distiller-output pipeline (and
+      // from the explicit `make_chart` tool). Each event carries one
+      // chart's URL + the underlying claim/source so the reasoning-trace
+      // panel can show a click-to-open button next to the relevant
+      // finding. Charts NEVER appear inline in the chat answer.
+      es.addEventListener('chart', (e) => {
+        const p = parse<{
+          turn_id: string
+          specialist: string
+          topic: string
+          url: string
+          claim?: string
+          source_call?: string
+          kind?: string
+          vega_spec?: Record<string, unknown> | null
+        }>(e.data)
+        if (!p) return
+        const chart: ChartInfo = {
+          specialist: p.specialist,
+          topic: p.topic,
+          url: p.url,
+          claim: p.claim ?? '',
+          source_call: p.source_call ?? '',
+          kind: p.kind ?? '',
+          vega_spec: p.vega_spec ?? null,
+        }
+        upsertChart(caseId, p.turn_id, chart)
+      })
+
       es.addEventListener('turn_done', (e) => {
         const p = parse<{ turn_id: string; ended_at: number; duration_ms: number;
                           outcome: Turn['outcome'] }>(e.data)
@@ -152,8 +182,20 @@ export function useSSE(caseId: string | null) {
 
       es.addEventListener('error', (e) => {
         const ev = e as MessageEvent
-        const p = parse<{ turn_id: string; message: string }>(ev.data || '')
+        const p = parse<{
+          turn_id: string
+          message: string
+          recoverable?: boolean
+          specialist?: string
+          error_type?: string
+          kind?: string
+        }>(ev.data || '')
         if (!p) return
+        // Recoverable errors (e.g. one specialist failed but the orchestrator
+        // is still synthesizing from the others) must NOT mark the entire
+        // turn as failed — the turn can still produce a final answer. Only
+        // hard failures (unrecoverable orchestrator/screen errors) terminate.
+        if (p.recoverable) return
         patchTurn(caseId, p.turn_id, { status: 'error', error: p.message })
       })
     }

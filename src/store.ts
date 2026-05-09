@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AgentRun, CaseList, Message, SseStatus, StoreState } from './types'
+import type { AgentRun, CaseList, ChartInfo, Message, SseStatus, StoreState } from './types'
 
 const STORAGE_KEY = 'case-review-threads-v6'
 
@@ -37,12 +37,12 @@ export const useStore = create<StoreState>()(
         // walk back from `messageId` to the most recent reviewer message
         // (including itself if the click was on a reviewer bubble), then
         // drop that reviewer message and everything after it.
+        // Also drops the corresponding reasoning-trace turns and resets the
+        // active turn pointer so the right-side panels (audit trace and
+        // orchestration flow) don't display traces for messages that no
+        // longer exist in the chat.
         // Returns the reviewer's text so the caller can prefill the input
         // box for editing — empty string if nothing to rewind to.
-        // Use zustand's `get()` rather than `useStore.getState()` here:
-        // referencing `useStore` inside its own initializer creates a
-        // circular type reference that makes TS infer the whole store as
-        // `any`, breaking every `useStore((st) => …)` selector elsewhere.
         const state = get()
         const thread = state.threads[caseId] ?? []
         const clickedIdx = thread.findIndex((m) => m.id === messageId)
@@ -52,19 +52,27 @@ export const useStore = create<StoreState>()(
         for (let i = clickedIdx; i >= 0; i--) {
           if (thread[i].role === 'reviewer') { revIdx = i; break }
         }
-        if (revIdx === -1) {
-          // No reviewer ancestor (shouldn't normally happen) — fall back to
-          // dropping just the clicked message + everything after.
-          set((s) => ({
-            threads: { ...s.threads, [caseId]: thread.slice(0, clickedIdx) },
-          }))
-          return ''
-        }
-        const reviewerText = thread[revIdx].text
+        // Compute the new thread, then derive which trace turns survive.
+        const newThread = revIdx === -1
+          ? thread.slice(0, clickedIdx)
+          : thread.slice(0, revIdx)
+        const survivingTurnIds = new Set(
+          newThread.map((m) => m.turn_id).filter((t): t is string => !!t)
+        )
+        const survivingTurns = (state.turns[caseId] ?? []).filter(
+          (t) => survivingTurnIds.has(t.turn_id)
+        )
+        const prevActive = state.activeTurnId[caseId] ?? null
+        const newActive = prevActive && survivingTurnIds.has(prevActive)
+          ? prevActive
+          : (survivingTurns.length > 0 ? survivingTurns[survivingTurns.length - 1].turn_id : null)
         set((s) => ({
-          threads: { ...s.threads, [caseId]: thread.slice(0, revIdx) },
+          threads:      { ...s.threads,      [caseId]: newThread },
+          turns:        { ...s.turns,        [caseId]: survivingTurns },
+          activeTurnId: { ...s.activeTurnId, [caseId]: newActive },
         }))
-        return reviewerText
+        if (revIdx === -1) return ''
+        return thread[revIdx].text
       },
 
       setSseStatus: (status) => set({ sseStatus: status }),
@@ -108,6 +116,27 @@ export const useStore = create<StoreState>()(
                 ? [...t.agent_runs, run]
                 : t.agent_runs.map((r, i) => (i === existingIdx ? { ...r, ...run } : r))
             return { ...t, agent_runs: merged }
+          })
+          return { turns: { ...state.turns, [caseId]: next } }
+        }),
+
+      upsertChart: (caseId, turnId, chart: ChartInfo) =>
+        set((state) => {
+          const list = state.turns[caseId] ?? []
+          const next = list.map((t) => {
+            if (t.turn_id !== turnId) return t
+            const existing = t.charts ?? []
+            // Dedup by (specialist, topic): later emission wins so a
+            // distiller-revised chart can supersede an earlier explicit
+            // make_chart call (matches server-side `_collect_turn_charts`).
+            const idx = existing.findIndex(
+              (c) => c.specialist === chart.specialist && c.topic === chart.topic
+            )
+            const merged: ChartInfo[] =
+              idx === -1
+                ? [...existing, chart]
+                : existing.map((c, i) => (i === idx ? { ...c, ...chart } : c))
+            return { ...t, charts: merged }
           })
           return { turns: { ...state.turns, [caseId]: next } }
         }),

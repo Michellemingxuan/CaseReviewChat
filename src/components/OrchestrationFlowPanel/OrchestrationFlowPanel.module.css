@@ -257,14 +257,16 @@
   border-radius: 8px;
   padding: 8px 10px 10px;
   position: relative;
-  /* Fixed height — the outer frame never grows or shrinks regardless of how
-     many agents land in it. Content (placeholder OR nodes) scrolls inside
-     `.nodeStack`. This keeps Synthesis position, fork-arm geometry, and the
-     left vertical chain perfectly stable from the moment a turn opens. */
+  /* Branch height is set inline by the parent component to scale with the
+     number of agents in the branch — a 4-specialist team reads as visibly
+     bigger than a 1-report side. The fork SVG receives matching center-Y
+     percentages so the connector tips track each branch's vertical center
+     even when the two branches differ in height. The 220px fallback below
+     applies only if the inline height is somehow not provided. */
   height: 220px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .branchHeader { flex-shrink: 0; }
 /* ── Report branch — teal identity ───────────────────────────────────── */
@@ -343,6 +345,31 @@
 .nodeStack::-webkit-scrollbar-track { background: transparent; }
 .nodeStack::-webkit-scrollbar-thumb { background: rgba(10,31,68,0.18); border-radius: 3px; }
 .nodeStack::-webkit-scrollbar-thumb:hover { background: rgba(10,31,68,0.32); }
+
+/* Divider inside the team branch — separates the regular specialists
+   from the general (cross-review) specialist. Keeps the team-indigo
+   color so it reads as one branch with two parts, not two branches. */
+.teamDivider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #4338CA;
+  padding: 4px 0 2px;
+  flex-shrink: 0;
+}
+.teamDivider::before,
+.teamDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(91,110,225,0.05), rgba(91,110,225,0.4), rgba(91,110,225,0.05));
+}
+.teamDivider span { white-space: nowrap; }
 
 /* Fork SVG — bifurcation between vertical chain and the two branches,
    and convergence between branches and Synthesis. Stretches with the

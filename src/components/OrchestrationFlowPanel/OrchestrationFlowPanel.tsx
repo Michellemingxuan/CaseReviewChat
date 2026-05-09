@@ -24,7 +24,20 @@ type NodeStatus = 'idle' | 'running' | 'done' | 'error'
 export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   const turns = useStore((st) => (caseId ? st.turns[caseId] : undefined)) ?? EMPTY_TURNS
   const activeTurnId = useStore((st) => (caseId ? st.activeTurnId[caseId] : null))
-  const turn = turns.find((t) => t.turn_id === activeTurnId) ?? turns[turns.length - 1] ?? null
+  // Auto-follow the LATEST streaming turn. When a new turn is in flight,
+  // the user almost always wants to see THAT turn's progress, not whatever
+  // they last clicked. Critical: must use `findLast` (NOT `find`) — when
+  // the user asks a follow-up before the previous turn's `turn_done` event
+  // has been processed, BOTH turns have status='streaming' simultaneously,
+  // and `find` would return the older one and freeze the panel on it.
+  // Once the streaming turn completes (status moves off 'streaming'), we
+  // fall back to the user's selection.
+  const streamingTurn = turns.findLast((t) => t.status === 'streaming') ?? null
+  const turn =
+    streamingTurn ??
+    turns.find((t) => t.turn_id === activeTurnId) ??
+    turns[turns.length - 1] ??
+    null
 
   if (!turn) {
     return (
@@ -68,6 +81,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                     role="Screen + scope check"
                     status="done"
                     detail="passed"
+                    iconKind="chat"
                     roleStacked
                   />
                   <DownArrow status="done" />
@@ -76,6 +90,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                     role="reused from a prior identical question — no fresh data pull"
                     status="done"
                     iconClass={s.purple}
+                    iconKind="cache"
                     detail={turn.duration_ms ? `${(turn.duration_ms / 1000).toFixed(2)}s` : ''}
                     roleStacked
                   />
@@ -92,6 +107,34 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   const allCalls: ToolCall[] = turn.team_plan ?? []
   const reportCalls = allCalls.filter((c) => c.tool === 'report_agent')
   const teamCalls = allCalls.filter((c) => c.tool !== 'report_agent')
+  // Within the team branch, split regular specialists from the general
+  // (cross-review) specialist so the latter always renders last as a
+  // distinct second part of the branch.
+  const specialistCalls = teamCalls.filter((c) => c.tool !== 'general_specialist')
+  const generalSpecialistCalls = teamCalls.filter((c) => c.tool === 'general_specialist')
+  const showTeamDivider = specialistCalls.length > 0 && generalSpecialistCalls.length > 0
+
+  // Branch heights scale with the number of agents in each branch so a
+  // 2-specialist team visually reads as bigger than a 1-report side.
+  // SLOT is a generous estimate per node so nodes don't need to scroll
+  // inside the branch in typical cases. HEADER covers branch padding +
+  // header row. The team branch reserves extra space when a divider is
+  // shown between the regular specialists and the general specialist.
+  const SLOT = 100
+  const HEADER = 40
+  const reportSlots = Math.max(1, reportCalls.length)
+  const teamSlots = Math.max(1, teamCalls.length)
+  const reportHeight = HEADER + reportSlots * SLOT
+  const teamHeight = HEADER + teamSlots * SLOT + (showTeamDivider ? 28 : 0)
+  const branchGap = 10
+  const totalBranchH = reportHeight + branchGap + teamHeight
+  // Fork tip Y positions as percentages of the branchStack height — the
+  // ForkOut/ForkIn SVGs use viewBox 0..100 and stretch vertically to the
+  // branchStack, so these percentages line the connector tips up with
+  // each branch's vertical center even when the two branches differ in
+  // height.
+  const reportCenterPct = ((reportHeight / 2) / totalBranchH) * 100
+  const teamCenterPct = ((reportHeight + branchGap + teamHeight / 2) / totalBranchH) * 100
 
   // Stage statuses derived from the turn.
   const chatStatus: NodeStatus =
@@ -184,6 +227,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                         role="Screen + scope check"
                         status={chatStatus}
                         detail={turn.question_check ? (turn.question_check.passed ? 'passed' : 'rejected') : ''}
+                        iconKind="chat"
                         roleStacked
                       />
 
@@ -197,6 +241,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                     role={allCalls.length > 0 ? `Dispatched ${allCalls.length}` : 'Planning…'}
                     status={orchStatus}
                     detail=""
+                    iconKind="orchestrator"
                     roleStacked
                   />
 
@@ -228,6 +273,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                         ? (turn.question_check.passed ? 'passed' : (turn.question_check.reason || 'rejected'))
                         : ''
                     }
+                    iconKind="chat"
                     roleStacked
                   />
                 </div>
@@ -250,11 +296,16 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                   : (orchStatus === 'done' || teamStatus === 'running') ? 'active'
                   : 'idle'
               }
+              topY={reportCenterPct}
+              bottomY={teamCenterPct}
             />
 
             {/* ── Branches (middle, stacked) ── */}
             <div className={s.branchStack}>
-              <div className={`${s.branch} ${s.report} ${reportFailed ? s.failed : ''}`}>
+              <div
+                className={`${s.branch} ${s.report} ${reportFailed ? s.failed : ''}`}
+                style={{ height: `${reportHeight}px` }}
+              >
                 <div className={s.branchHeader}>
                   <span className={`${s.branchLabel} ${s.report}`}>
                     Report Branch{reportFailed ? ' · failed' : ''}
@@ -276,6 +327,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                           name="report_agent"
                           role="curated reports"
                           iconClass={s.teal}
+                          iconKind="report"
                           status={status}
                           detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                           errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
@@ -287,7 +339,10 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                 </div>
               </div>
 
-              <div className={`${s.branch} ${s.team} ${teamFailed ? s.failed : ''}`}>
+              <div
+                className={`${s.branch} ${s.team} ${teamFailed ? s.failed : ''}`}
+                style={{ height: `${teamHeight}px` }}
+              >
                 <div className={s.branchHeader}>
                   <span className={`${s.branchLabel} ${s.team}`}>
                     Team Construction{teamFailed ? ' · failed' : ''}
@@ -300,23 +355,43 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                   {teamCalls.length === 0 ? (
                     <div className={s.nodePlaceholder}>no specialists dispatched</div>
                   ) : (
-                    teamCalls.map((tc) => {
-                      const run = runFor(tc, turn.agent_runs)
-                      const isGeneral = tc.tool === 'general_specialist'
-                      const status = runStatus(run, turn.status)
-                      return (
-                        <Node
-                          key={tc.call_id}
-                          name={tc.tool}
-                          role={isGeneral ? 'cross-specialist review' : `${tc.tool} specialist`}
-                          iconClass={isGeneral ? s.amber : ''}
-                          status={status}
-                          detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
-                          errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
-                          subQuestion={tc.sub_question}
-                        />
-                      )
-                    })
+                    <>
+                      {specialistCalls.map((tc) => {
+                        const run = runFor(tc, turn.agent_runs)
+                        const status = runStatus(run, turn.status)
+                        return (
+                          <Node
+                            key={tc.call_id}
+                            name={tc.tool}
+                            role={`${tc.tool} specialist`}
+                            iconKind="specialist"
+                            status={status}
+                            detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
+                            errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
+                            subQuestion={tc.sub_question}
+                          />
+                        )
+                      })}
+                      {showTeamDivider && (
+                        <div className={s.teamDivider}><span>cross-review</span></div>
+                      )}
+                      {generalSpecialistCalls.map((tc) => {
+                        const run = runFor(tc, turn.agent_runs)
+                        const status = runStatus(run, turn.status)
+                        return (
+                          <Node
+                            key={tc.call_id}
+                            name={tc.tool}
+                            role="cross-specialist review"
+                            iconKind="general"
+                            status={status}
+                            detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
+                            errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
+                            subQuestion={tc.sub_question}
+                          />
+                        )
+                      })}
+                    </>
                   )}
                 </div>
               </div>
@@ -337,6 +412,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                   : 'idle'
               }
               tailStatus={branchesToSynth}
+              topY={reportCenterPct}
+              bottomY={teamCenterPct}
             />
 
             {/* ── Synthesis (right) ── */}
@@ -346,7 +423,21 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                 role="Reconcile · draft"
                 status={synthStatus}
                 iconClass={s.purple}
-                detail={turn.duration_ms ? `${(turn.duration_ms / 1000).toFixed(2)}s total` : ''}
+                iconKind="synthesis"
+                detail={(() => {
+                  const duration = turn.duration_ms
+                    ? `${(turn.duration_ms / 1000).toFixed(2)}s total`
+                    : ''
+                  // Chart-availability hint: when this turn produced charts,
+                  // signal it on the synthesis node so the reviewer knows to
+                  // check the reasoning trace's [ Charts ] block (charts are
+                  // intentionally not embedded in the chat answer anymore).
+                  const nCharts = turn.charts?.length ?? 0
+                  const chartHint = nCharts > 0
+                    ? `📊 ${nCharts} chart${nCharts === 1 ? '' : 's'} in trace`
+                    : ''
+                  return [chartHint, duration].filter(Boolean).join(' · ')
+                })()}
                 errorReason={synthStatus === 'error' ? (turn.error || 'pipeline error') : undefined}
                 roleStacked
               />
@@ -450,9 +541,15 @@ function pathCls(status: LineStatus) {
 /** Fork out of the orchestrator into two branches.
  *  Layout in viewBox 0..100 horizontal × 0..100 vertical:
  *    - Stub from left edge to the spine (x=0..40, y=50)
- *    - Spine connecting both tips (x=40, y=20..80)
- *    - Two arms reaching out to the branches (x=40..100, y=20 and y=80) */
-function ForkOut({ topStatus, bottomStatus }: { topStatus: LineStatus; bottomStatus: LineStatus }) {
+ *    - Spine connecting both tips (x=40, y=topY..bottomY)
+ *    - Two arms reaching out to the branches (x=40..100, y=topY and y=bottomY)
+ *  topY/bottomY are passed from the caller as percentages so the tips line
+ *  up with each branch's vertical center even when branches differ in height. */
+function ForkOut({
+  topStatus, bottomStatus, topY = 20, bottomY = 80,
+}: {
+  topStatus: LineStatus; bottomStatus: LineStatus; topY?: number; bottomY?: number
+}) {
   // Stub colour reflects whichever branch is most progressed (any active/done dominates idle).
   const stubStatus: LineStatus =
     (topStatus === 'error' && bottomStatus === 'error') ? 'error'
@@ -465,11 +562,11 @@ function ForkOut({ topStatus, bottomStatus }: { topStatus: LineStatus; bottomSta
         {/* stub from orchestrator — neutral status color */}
         <path className={`${s.forkPath} ${pathCls(stubStatus)}`} d="M 0 50 L 40 50" />
         {/* spine — top half tinted teal (report), bottom half tinted indigo (team) */}
-        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d="M 40 50 L 40 20" />
-        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d="M 40 50 L 40 80" />
+        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d={`M 40 50 L 40 ${topY}`} />
+        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d={`M 40 50 L 40 ${bottomY}`} />
         {/* arms reaching out to each branch */}
-        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d="M 40 20 L 100 20" />
-        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d="M 40 80 L 100 80" />
+        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d={`M 40 ${topY} L 100 ${topY}`} />
+        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d={`M 40 ${bottomY} L 100 ${bottomY}`} />
       </svg>
     </div>
   )
@@ -477,19 +574,20 @@ function ForkOut({ topStatus, bottomStatus }: { topStatus: LineStatus; bottomSta
 
 /** Merge from two branches into Synthesis — mirror of ForkOut. */
 function ForkIn({
-  topStatus, bottomStatus, tailStatus,
+  topStatus, bottomStatus, tailStatus, topY = 20, bottomY = 80,
 }: {
   topStatus: LineStatus; bottomStatus: LineStatus; tailStatus: LineStatus
+  topY?: number; bottomY?: number
 }) {
   return (
     <div className={s.fork}>
       <svg className={s.forkSvg} viewBox="0 0 100 100" preserveAspectRatio="none">
         {/* arms in — keep branch identity */}
-        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d="M 0 20 L 60 20" />
-        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d="M 0 80 L 60 80" />
+        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d={`M 0 ${topY} L 60 ${topY}`} />
+        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d={`M 0 ${bottomY} L 60 ${bottomY}`} />
         {/* spine */}
-        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d="M 60 20 L 60 50" />
-        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d="M 60 80 L 60 50" />
+        <path className={`${s.forkPath} ${s.reportArm} ${pathCls(topStatus)}`}    d={`M 60 ${topY} L 60 50`} />
+        <path className={`${s.forkPath} ${s.teamArm} ${pathCls(bottomStatus)}`}   d={`M 60 ${bottomY} L 60 50`} />
         {/* tail to synthesis — neutral status color */}
         <path className={`${s.forkPath} ${pathCls(tailStatus)}`}   d="M 60 50 L 100 50" />
       </svg>
@@ -497,14 +595,108 @@ function ForkIn({
   )
 }
 
+type IconKind =
+  | 'chat'
+  | 'orchestrator'
+  | 'report'
+  | 'specialist'
+  | 'general'
+  | 'synthesis'
+  | 'cache'
+  | 'default'
+
+function NodeIcon({ kind }: { kind: IconKind }) {
+  const common = {
+    width: 11,
+    height: 11,
+    viewBox: '0 0 16 16',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.4,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  }
+  switch (kind) {
+    case 'chat':
+      // Speech bubble with a tail
+      return (
+        <svg {...common}>
+          <path d="M3 3h10v8H7l-3 3v-3H3z" />
+        </svg>
+      )
+    case 'orchestrator':
+      // Share / branching — one source feeding two outputs
+      return (
+        <svg {...common}>
+          <circle cx="4" cy="8" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="3.5" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12.5" r="1.6" fill="currentColor" stroke="none" />
+          <path d="M5.5 7.2L10.5 4.4M5.5 8.8L10.5 11.6" />
+        </svg>
+      )
+    case 'report':
+      // Document with text lines and a folded corner
+      return (
+        <svg {...common}>
+          <path d="M4 2h5l3 3v9H4z" />
+          <path d="M9 2v3h3" />
+          <path d="M6 8.5h4M6 10.8h4" />
+        </svg>
+      )
+    case 'specialist':
+      // Single person silhouette
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="6" r="2.4" />
+          <path d="M3 14c0-2.6 2-4.2 5-4.2s5 1.6 5 4.2" />
+        </svg>
+      )
+    case 'general':
+      // Eye — "cross-specialist review"
+      return (
+        <svg {...common}>
+          <path d="M1.5 8c1.3-2.8 3.5-4.5 6.5-4.5s5.2 1.7 6.5 4.5c-1.3 2.8-3.5 4.5-6.5 4.5S2.8 10.8 1.5 8z" />
+          <circle cx="8" cy="8" r="1.9" />
+        </svg>
+      )
+    case 'synthesis':
+      // Layers — multiple inputs collapsed into one stack
+      return (
+        <svg {...common}>
+          <path d="M8 2L2 5l6 3 6-3z" />
+          <path d="M2 8l6 3 6-3" />
+          <path d="M2 11l6 3 6-3" />
+        </svg>
+      )
+    case 'cache':
+      // Clock — replayed from cache
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="5.5" />
+          <path d="M8 5v3.2l2 1.4" />
+        </svg>
+      )
+    case 'default':
+    default:
+      return (
+        <svg {...common} strokeWidth={1.5}>
+          <circle cx="8" cy="8" r="2" />
+          <path d="M8 1v3M8 12v3M1 8h3M12 8h3" />
+        </svg>
+      )
+  }
+}
+
 function Node({
-  name, role, status, iconClass = '', detail, errorReason: errReason, subQuestion, subQuestionFull,
+  name, role, status, iconClass = '', iconKind = 'default',
+  detail, errorReason: errReason, subQuestion, subQuestionFull,
   roleStacked = false,
 }: {
   name: string
   role: string
   status: NodeStatus
   iconClass?: string
+  iconKind?: IconKind
   detail: string
   errorReason?: string
   subQuestion?: string
@@ -524,10 +716,7 @@ function Node({
     <div className={`${s.node} ${statusCls}`} title={errReason ? `Failed: ${errReason}` : undefined}>
       <div className={s.nodeRow1}>
         <span className={`${s.nodeIcon} ${iconClass}`}>
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="8" cy="8" r="2" />
-            <path d="M8 1v3M8 12v3M1 8h3M12 8h3" />
-          </svg>
+          <NodeIcon kind={iconKind} />
         </span>
         {roleStacked ? (
           <span className={s.nodeName} title={name} style={{ flex: 1 }}>{name}</span>

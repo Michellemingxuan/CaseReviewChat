@@ -81,6 +81,26 @@ export type FinalSynthesis = {
   data_pull_request?: unknown
 }
 
+export type ChartInfo = {
+  /** Stable per-(specialist, topic) within a turn — latest wins on the
+   *  server side; the frontend just dedupes by this composite key when
+   *  re-rendering. */
+  specialist: string
+  topic: string
+  /** Server-relative URL the frontend can fetch directly (e.g.
+   *  `/api/cases/<case>/charts/<file>.png`). */
+  url: string
+  /** One-sentence finding the chart visualizes. Shown as the button label
+   *  / tooltip in the reasoning trace. */
+  claim: string
+  /** Upstream tool call that produced the data (audit info; may be empty). */
+  source_call: string
+  /** `trend` | `bar` | `share` — used for icon selection in the trace panel. */
+  kind: string
+  /** Optional Vega-Lite v5 spec for downstream interactive renderers. */
+  vega_spec?: Record<string, unknown> | null
+}
+
 export type Turn = {
   turn_id: string
   question: string
@@ -90,6 +110,9 @@ export type Turn = {
   question_check?: QuestionCheck
   team_plan?: ToolCall[]
   agent_runs: AgentRun[]
+  /** Charts emitted via the `chart` SSE event for this turn — rendered
+   *  in the reasoning-trace panel (NOT inline in the chat answer). */
+  charts?: ChartInfo[]
   final?: FinalSynthesis
   outcome?: Outcome
   status: 'streaming' | 'done' | 'error'
@@ -116,5 +139,7 @@ export type StoreState = {
   startTurn: (caseId: string, turn: Turn) => void
   patchTurn: (caseId: string, turnId: string, patch: Partial<Turn>) => void
   upsertAgentRun: (caseId: string, turnId: string, run: AgentRun) => void
+  /** Append (or replace, dedup-by-(specialist, topic)) a chart on a turn. */
+  upsertChart: (caseId: string, turnId: string, chart: ChartInfo) => void
   setActiveTurn: (caseId: string, turnId: string | null) => void
 }
