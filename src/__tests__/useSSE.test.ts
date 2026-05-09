@@ -106,4 +106,79 @@ describe('useSSE', () => {
     expect(MockEventSource.instances[0].close).toHaveBeenCalled()
     expect(MockEventSource.instances[1].url).toBe('/api/cases/C-002/stream')
   })
+
+  it('chart event lands on the matching turn via upsertChart', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+
+    // Seed a streaming turn first — chart events that target an unknown
+    // turn_id are no-ops (matches the store's design).
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          specialist: 'modeling',
+          topic: 'fico_trajectory',
+          url: '/api/cases/C-001/charts/t1-fico_trajectory.png',
+          claim: 'FICO 720 → 645 over 6 months.',
+          source_call: "summarize_trend('bureau','fico_score',...)",
+          kind: 'trend',
+          vega_spec: null,
+        }),
+        'chart',
+      )
+    })
+
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(turn.charts).toHaveLength(1)
+    expect(turn.charts?.[0].topic).toBe('fico_trajectory')
+    expect(turn.charts?.[0].url).toContain('fico_trajectory.png')
+  })
+
+  it('error event with recoverable=true does NOT mark the turn errored', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          message: 'one specialist failed but turn continues',
+          recoverable: true,
+        }),
+        'error',
+      )
+    })
+    const turn = useStore.getState().turns['C-001'][0]
+    // Turn must NOT be flipped to error — the orchestrator can still produce
+    // a final answer from the other specialists.
+    expect(turn.status).toBe('streaming')
+    expect(turn.error).toBeUndefined()
+  })
+
+  it('error event without recoverable flag DOES mark the turn errored', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({ turn_id: 't1', message: 'orchestrator hard fail' }),
+        'error',
+      )
+    })
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(turn.status).toBe('error')
+    expect(turn.error).toContain('orchestrator hard fail')
+  })
 })

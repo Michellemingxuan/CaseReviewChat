@@ -209,5 +209,9 @@ export function useSSE(caseId: string | null) {
       esRef.current = null
       setSseStatus('disconnected')
     }
-  }, [caseId, appendMessage, setSseStatus, startTurn, patchTurn, upsertAgentRun])
+    // Note: upsertChart is bound when the chart SSE event arrives. It must
+    // be in the deps so React re-runs the effect if Zustand's reference
+    // ever changes (currently stable, but explicit deps protect against
+    // future refactors).
+  }, [caseId, appendMessage, setSseStatus, startTurn, patchTurn, upsertAgentRun, upsertChart])
 }

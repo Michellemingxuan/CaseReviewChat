@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from '../store'
-import type { Message } from '../types'
+import type { ChartInfo, Message, Turn } from '../types'
 
 const msg = (id: string, role: 'agent' | 'reviewer'): Message => ({
   id,
@@ -10,11 +10,15 @@ const msg = (id: string, role: 'agent' | 'reviewer'): Message => ({
 })
 
 beforeEach(() => {
-  // Reset store between tests
+  // Reset every persisted slice between tests — incomplete reset (e.g.
+  // forgetting `turns`) lets state leak across cases and produces
+  // confusing failures like "expected 1 turn, got 3".
   useStore.setState({
     caseList: [],
     activeCase: null,
     threads: {},
+    turns: {},
+    activeTurnId: {},
     sseStatus: 'disconnected',
     unread: new Set(),
   })
@@ -76,5 +80,51 @@ describe('store', () => {
   it('markUnread adds caseId to unread set', () => {
     useStore.getState().markUnread('C-002')
     expect(useStore.getState().unread.has('C-002')).toBe(true)
+  })
+
+  // ── upsertChart ────────────────────────────────────────────────────────
+
+  const baseTurn = (id: string): Turn => ({
+    turn_id: id,
+    question: 'q',
+    started_at: 1,
+    agent_runs: [],
+    status: 'streaming',
+  })
+
+  const chart = (specialist: string, topic: string, url: string): ChartInfo => ({
+    specialist, topic, url, claim: '', source_call: '', kind: 'trend',
+    vega_spec: null,
+  })
+
+  it('upsertChart appends a chart to the matching turn', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().upsertChart('C-001', 't1', chart('modeling', 'fico_trend', '/u1.png'))
+    const turns = useStore.getState().turns['C-001']
+    expect(turns[0].charts).toHaveLength(1)
+    expect(turns[0].charts?.[0].url).toBe('/u1.png')
+  })
+
+  it('upsertChart dedupes by (specialist, topic) — latest wins', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().upsertChart('C-001', 't1', chart('modeling', 'fico_trend', '/v1.png'))
+    useStore.getState().upsertChart('C-001', 't1', chart('modeling', 'fico_trend', '/v2.png'))
+    // Different topic, same specialist — independent.
+    useStore.getState().upsertChart('C-001', 't1', chart('modeling', 'delinq_trend', '/v3.png'))
+    // Same topic, different specialist — independent.
+    useStore.getState().upsertChart('C-001', 't1', chart('bureau', 'fico_trend', '/v4.png'))
+
+    const charts = useStore.getState().turns['C-001'][0].charts ?? []
+    expect(charts).toHaveLength(3)  // 4 emitted, 1 deduped
+    const fico = charts.find((c) => c.specialist === 'modeling' && c.topic === 'fico_trend')
+    expect(fico?.url).toBe('/v2.png')  // latest wins
+  })
+
+  it('upsertChart on an unknown turn_id is a no-op (no orphan turns)', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().upsertChart('C-001', 'unknown', chart('modeling', 'x', '/p.png'))
+    const turns = useStore.getState().turns['C-001']
+    expect(turns).toHaveLength(1)
+    expect(turns[0].charts ?? []).toHaveLength(0)
   })
 })
