@@ -308,6 +308,38 @@
   font-weight: 600;
 }
 
+/* Tables — the data_query.md skill instructs specialists to use tables for
+   parallel data (period-by-period values, top-N rankings, threshold
+   breaches). Without these styles GFM tables fall through to raw browser
+   defaults that look terrible on a dark panel. */
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.markdown th,
+.markdown td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+.markdown th {
+  background: rgba(255, 255, 255, 0.04);
+  color: #C4D2EE;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.markdown td {
+  color: #E8F1FF;
+}
+.markdown tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 /* ─── Charts block ─────────────────────────────────────────────────────── */
 .bracket.charts       .tag { background: rgba(0, 162, 135, 0.18); color: #6CE0BB; border-color: rgba(0, 162, 135, 0.4); }
 .chartsGroup { margin: 6px 0 10px; }

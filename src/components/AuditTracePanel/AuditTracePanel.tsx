@@ -492,10 +492,18 @@ function ReviewReportBody({ payload }: { payload: ReviewReportPayload }) {
       {insights.length > 0 && (
         <>
           <p className={s.bullet}><span className={s.k}>Cross-domain insights:</span></p>
+          {/* Render each insight as markdown so the comparison.md skill's
+              bolded "**Inflection alignment**:" / "**Causal direction**:"
+              labels actually paint as bold in the panel. ExpandableLine
+              would show the literal asterisks. */}
           <ExpandableList
             items={insights}
             cap={3}
-            render={(e, i) => <ExpandableLine key={i} text={e} cap={250} />}
+            render={(e, i) => (
+              <div key={i} className={s.markdown} style={{ marginBottom: 6 }}>
+                <ExpandableMarkdown text={e} cap={300} />
+              </div>
+            )}
           />
         </>
       )}
@@ -508,6 +516,7 @@ function ReviewReportBody({ payload }: { payload: ReviewReportPayload }) {
 
 function FinalSynthesisBlock({ turn }: { turn: Turn }) {
   if (!turn.final && turn.status === 'streaming') return null
+  const answer = turn.final?.answer ?? turn.error ?? '(no answer)'
   return (
     <div className={s.block}>
       <div className={`${s.bracket} ${s.synthesis}`}>
@@ -518,7 +527,16 @@ function FinalSynthesisBlock({ turn }: { turn: Turn }) {
       </div>
       <div className={s.final}>
         <span className={s.answerTag}>Answer</span>
-        <p>{turn.final?.answer ?? turn.error ?? '(no answer)'}</p>
+        {/* Render the orchestrator's FinalAnswer as markdown — the
+            balancing.md skill instructs the LLM to bold load-bearing
+            facts, use bullet lists, and use tables for parallel data.
+            Plain <p>{text}</p> would show literal asterisks and pipe
+            characters and defeat the formatting work. The cap is bumped
+            to 1200 so a typical 6-12 line answer renders inline without
+            an Expand toggle. */}
+        <div className={s.markdown}>
+          <ExpandableMarkdown text={answer} cap={1200} />
+        </div>
         {turn.final?.flags && turn.final.flags.length > 0 && (
           <>
             <span className={s.answerTag} style={{ marginTop: 10 }}>Flags</span>
