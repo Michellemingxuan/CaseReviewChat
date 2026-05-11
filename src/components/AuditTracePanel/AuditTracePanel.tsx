@@ -528,7 +528,7 @@ function FinalSynthesisBlock({ turn }: { turn: Turn }) {
       <div className={s.final}>
         <span className={s.answerTag}>Answer</span>
         {/* Render the orchestrator's FinalAnswer as markdown — the
-            balancing.md skill instructs the LLM to bold load-bearing
+            synthesis.md skill instructs the LLM to bold load-bearing
             facts, use bullet lists, and use tables for parallel data.
             Plain <p>{text}</p> would show literal asterisks and pipe
             characters and defeat the formatting work. The cap is bumped
