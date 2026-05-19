@@ -158,6 +158,12 @@ export type StoreState = {
   turns: Record<string, Turn[]>
   activeTurnId: Record<string, string | null>
   sseStatus: SseStatus
+  /** Bumped by `forceReconnect()` to make `useSSE` tear down and rebuild
+   *  the EventSource. Lets the "Reconnecting" badge become a one-click
+   *  recovery affordance instead of forcing the user to hard-refresh
+   *  (which loses the live SSE the same way but ALSO wastes a full page
+   *  load + cold cache). */
+  connectionEpoch: number
   unread: Set<string>
   // actions — chat
   setCaseList: (list: CaseList) => void
@@ -165,6 +171,9 @@ export type StoreState = {
   appendMessage: (caseId: string, msg: Message) => void
   rewindThread: (caseId: string, messageId: string) => string
   setSseStatus: (status: SseStatus) => void
+  /** Force the SSE hook to drop its current EventSource and reconnect.
+   *  Used by the manual "Reconnect" affordance in the chat header. */
+  forceReconnect: () => void
   markUnread: (caseId: string) => void
   clearHistory: () => void
   // actions — turns / trace

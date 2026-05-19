@@ -13,6 +13,11 @@ export const useStore = create<StoreState>()(
       turns: {},
       activeTurnId: {},
       sseStatus: 'disconnected' as SseStatus,
+      // `useSSE`'s useEffect depends on this counter; bumping it tears
+      // down the current EventSource and opens a fresh one. Exposed via
+      // `forceReconnect()` below so the chat-header badge can offer a
+      // one-click recovery instead of forcing a hard refresh.
+      connectionEpoch: 0,
       unread: new Set<string>(),
 
       setCaseList: (list) => set({ caseList: list }),
@@ -76,6 +81,9 @@ export const useStore = create<StoreState>()(
       },
 
       setSseStatus: (status) => set({ sseStatus: status }),
+
+      forceReconnect: () =>
+        set((state) => ({ connectionEpoch: state.connectionEpoch + 1 })),
 
       markUnread: (caseId) =>
         set((state) => {

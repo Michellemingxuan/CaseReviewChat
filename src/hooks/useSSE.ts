@@ -41,6 +41,12 @@ export function useSSE(caseId: string | null) {
   const upsertChart = useStore((s) => s.upsertChart)
   const upsertPendingChart = useStore((s) => s.upsertPendingChart)
   const setActiveTurn = useStore((s) => s.setActiveTurn)
+  // Subscribing to `connectionEpoch` lets a manual "Reconnect" button
+  // (chat header) force the EventSource to tear down and rebuild —
+  // the useEffect below re-runs whenever this number changes. Users
+  // had to hard-refresh otherwise; with this they get one-click
+  // recovery without losing the active case / thread / trace state.
+  const connectionEpoch = useStore((s) => s.connectionEpoch)
 
   const esRef = useRef<EventSource | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -355,5 +361,5 @@ export function useSSE(caseId: string | null) {
     // be in the deps so React re-runs the effect if Zustand's reference
     // ever changes (currently stable, but explicit deps protect against
     // future refactors).
-  }, [caseId, appendMessage, setSseStatus, startTurn, patchTurn, upsertAgentRun, upsertChart, upsertPendingChart, setActiveTurn])
+  }, [caseId, appendMessage, setSseStatus, startTurn, patchTurn, upsertAgentRun, upsertChart, upsertPendingChart, setActiveTurn, connectionEpoch])
 }

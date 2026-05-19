@@ -55,3 +55,23 @@
 .disconnected .dot {
   background: #ca8a04;
 }
+
+/* When the badge is clickable (disconnected state), give it button
+   affordance — pointer cursor, subtle hover/active states, focus ring
+   for keyboard users. Keeps the badge looking like a status pill while
+   making the click target unmistakable. */
+button.badge {
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+button.badge:hover {
+  background: rgba(202, 138, 4, 0.18);
+}
+button.badge:active {
+  background: rgba(202, 138, 4, 0.26);
+}
+button.badge:focus-visible {
+  outline: 2px solid #ca8a04;
+  outline-offset: 2px;
+}

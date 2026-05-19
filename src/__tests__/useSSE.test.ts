@@ -478,6 +478,32 @@ describe('useSSE', () => {
       expect(MockEventSource.instances).toHaveLength(1)
     })
 
+    it('forces a fresh EventSource when forceReconnect() bumps connectionEpoch', () => {
+      // Simulates the "Reconnect" badge in the chat header: user clicks
+      // the button → store action increments connectionEpoch → useSSE's
+      // effect tears down the (possibly silently-dead) EventSource and
+      // builds a new one. Without this affordance the user had to hard-
+      // refresh the page, losing the cold cache for no real reason.
+      const { rerender } = renderHook(() => useSSE('C-001'))
+      expect(MockEventSource.instances).toHaveLength(1)
+      const original = MockEventSource.instances[0]
+      // Simulate a healthy open connection — readyState OPEN so the
+      // visibility/online listeners would NOT reconnect (the manual
+      // path must work regardless of whether the existing ES looks
+      // alive).
+      Object.defineProperty(original, 'readyState', { configurable: true, value: 1 })
+      act(() => { original.open() })
+
+      // User clicks the Reconnect badge:
+      act(() => { useStore.getState().forceReconnect() })
+      rerender()
+
+      // A second EventSource was constructed.
+      expect(MockEventSource.instances).toHaveLength(2)
+      // The original one was closed during teardown.
+      expect(original.close).toHaveBeenCalled()
+    })
+
     it('forces immediate reconnect on online event when disconnected', () => {
       vi.useFakeTimers()
       try {
