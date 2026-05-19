@@ -8,18 +8,18 @@
 }
 
 .head {
-  padding: 10px 22px 6px;
+  padding: 6px 12px 4px;
   border-bottom: 1px solid #E2E7F0;
   flex-shrink: 0;
   background: #F4F6FA;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #0A1F44;
   margin: 0;
@@ -59,26 +59,91 @@
 
 .canvas {
   flex: 1;
-  padding: 4px 12px 10px;
-  overflow: auto;
+  padding: 2px 6px 4px;
+  /* Auto-fit scaling (see `useFlowScale` in the .tsx) keeps the flow
+   * inside at all sizes — visual overflow is clipped cleanly. */
+  overflow: hidden;
   min-height: 0;
+  /* Canvas is a flex column so the glass below fills the available
+   * vertical space (height: 100% on the glass picks up the flex
+   * basis). */
+  display: flex;
+  flex-direction: column;
 }
 .glass {
   position: relative;
   background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.7));
   border: 1px solid #E2E7F0;
-  border-radius: 10px;
-  padding: 14px 14px 12px;
-  box-shadow: 0 12px 32px -12px rgba(10,31,68,0.18), 0 4px 12px -4px rgba(10,31,68,0.06);
+  border-radius: 8px;
+  padding: 8px 10px 6px;
+  box-shadow: 0 8px 20px -10px rgba(10,31,68,0.16), 0 2px 6px -2px rgba(10,31,68,0.05);
   overflow: hidden;
-  /* Compact baseline: just question → chat agent. Smaller until the
-     chat agent confirms pass and the orchestrator stage is unlocked. */
-  min-height: 260px;
-  transition: min-height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Glass fills the canvas — the white background is self-adaptive to
+   * the panel size. The flow diagram lives in `.flowFrame` (natural
+   * 900×480) and is auto-fit-scaled by `useFlowScale` to fit whatever
+   * size the glass currently is. Net result:
+   *   - At any panel width the glass card fills the available area.
+   *   - Every turn at the same panel size renders into an
+   *     identical-looking card (the WIDTH/HEIGHT of the white
+   *     background depend only on the panel, not on how many agents
+   *     ran), so "what to eat" and "what is the spending pattern" land
+   *     in the same canvas footprint.
+   */
+  /* As a flex column child of `.canvas`, `flex: 1` is more reliable
+   * than `height: 100%` for filling the canvas vertically — percentage
+   * heights can fail to resolve when the parent height isn't fully
+   * determined, which was making `align-items / justify-content: center`
+   * silently no-op (the frame pinned to the top-left of the glass
+   * instead of centering, leaving the chat-agent visibly off-position).
+   * Cross-axis (`align-self: stretch` is the default in column flex)
+   * already fills the width. */
+  flex: 1;
+  width: 100%;
+  /* Center the flow frame inside the glass — the frame's transform
+   * uses center-origin, so its layout box stays centered after
+   * scaling. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Inner frame: fixed-dimension layout box for the flow diagram.
+ * `useFlowScale` measures the glass and sets `--flow-scale` so this
+ * frame fits the available area.
+ *
+ * Natural 880×340 sized to match a TYPICAL lower-section viewport:
+ *   - width 880: left column 180 + fork 26 + branches ≈220 + fork 26
+ *     + synthesis ≈220 + padding, equals the maximal expanded layout.
+ *   - height 340: matches the natural content height of a 2-branch
+ *     flow with 1-2 specialists per branch — taller teams scroll
+ *     inside `.nodeStack`. The previous 480 was overkill for a
+ *     panel that's commonly ≈ 400px tall, which forced auto-fit
+ *     to scale DOWN to ~0.85× and left big empty margins around
+ *     the diagram. 340 keeps scale ≥ 1.0 in typical lower-tab
+ *     viewports, so the diagram fills more of the canvas.
+ *
+ * Flex column so the inner `.flow` (with align-self:stretch children
+ * like leftWrapper) gets a concrete parent height to stretch into.
+ * Without this, .flow sits at its content height at the top of the
+ * frame and the leftWrapper / branches don't fill — chat agent ends
+ * up clipped at the top edge of the glass after auto-fit scaling. */
+.flowFrame {
+  width: 880px;
+  height: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  transform: scale(var(--flow-scale, 1));
+  transform-origin: center center;
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass.expanded {
-  /* Expanded: branches stack = 220 + 10 + 220 = 450 + padding = 476. */
-  min-height: 480px;
+  /* Compact + expanded now share the same min-height (see .glass above)
+   * so the canvas size is consistent across turns. This rule kept as a
+   * no-op anchor in case a future iteration wants to re-introduce a
+   * differential height. */
 }
 .glass::before {
   content: '';
@@ -110,6 +175,36 @@
   align-items: center;
   gap: 0;
   min-width: 0;
+  /* Fill the .flowFrame's 480px height so leftWrapper / branchStack /
+   * synthesis (all with `align-self: stretch`) actually stretch to the
+   * frame height. Without this, .flow's auto height collapses to its
+   * tallest natural child and the leftWrapper's upperHalf / lowerHalf
+   * flex math under-sizes — chat-agent ends up at the very top of the
+   * glass instead of at its expected y-position. */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Reserved-space placeholder for parts of the flow that haven't been
+ * reached yet — same layout box as the visible counterpart, just
+ * invisible. Keeps the chat-agent (and every later "shared agent")
+ * pinned at the same pixel position whether one agent ran or eight. */
+.reserved {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Compact-mode flow — hides the right-side children (fork + branches +
+ * fork + synthesis) while keeping them in the layout. This makes the
+ * canvas footprint identical between "rejected" turns (chat agent only)
+ * and full L-shape turns (orchestrator + branches + synthesis). The
+ * chat agent lands at the same pixel position; revealing the right
+ * side on compact → expanded is a fade-in, not a layout jump. */
+.flowCompact > .fork,
+.flowCompact > .branchStack,
+.flowCompact > [data-synthesis] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Left column: a flex column with two equal-flex spacers above/below the
@@ -121,9 +216,9 @@
   align-self: stretch;
   display: flex;
   flex-direction: column;
-  width: 220px;
-  flex: 0 0 220px;
-  min-width: 200px;
+  width: 180px;
+  flex: 0 0 180px;
+  min-width: 160px;
 }
 /* Upper half is slightly larger than lower so the chain → orchestrator sits
    a touch below the canvas's vertical center, giving the two paths a bit of
@@ -144,7 +239,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Compact left column — used before the chat agent has confirmed pass.
@@ -160,7 +255,7 @@
 }
 
 .downArrow {
-  height: 18px;
+  height: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -176,33 +271,33 @@
   background: white;
   border: 1px solid #E2E7F0;
   border-top: 2px solid #00175A;
-  border-radius: 8px;
-  padding: 9px 11px;
+  border-radius: 6px;
+  padding: 6px 8px;
   box-shadow: 0 1px 2px rgba(10,31,68,0.05);
 }
 .questionHead {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 2px;
 }
 .questionLabel {
   flex: 1;
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #00175A;
 }
 .chatJump {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
+  gap: 2px;
+  padding: 1px 5px;
   background: #F4F6FA;
   border: 1px solid #E2E7F0;
   border-radius: 3px;
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -219,13 +314,13 @@
 }
 .questionText {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-style: italic;
   color: #2C3A55;
-  line-height: 1.4;
+  line-height: 1.35;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -246,24 +341,24 @@
 .branchStack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   flex: 1 1 auto;
-  min-width: 200px;
+  min-width: 180px;
 }
 .branch {
   background: rgba(255,255,255,0.55);
   border: 1.5px solid #CBD5E0;
-  border-left-width: 4px;
-  border-radius: 8px;
-  padding: 8px 10px 10px;
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 6px 8px 8px;
   position: relative;
   /* Branch height is set inline by the parent component to scale with the
      number of agents in the branch — a 4-specialist team reads as visibly
      bigger than a 1-report side. The fork SVG receives matching center-Y
      percentages so the connector tips track each branch's vertical center
-     even when the two branches differ in height. The 220px fallback below
+     even when the two branches differ in height. The 170px fallback below
      applies only if the inline height is somehow not provided. */
-  height: 220px;
+  height: 170px;
   display: flex;
   flex-direction: column;
   transition: border-color 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -301,22 +396,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .branchLabel {
-  font-size: 9.5px;
-  letter-spacing: 0.12em;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #0A1F44;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .branchLabel::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
   display: inline-block;
@@ -325,17 +420,17 @@
 .branchLabel.team   { color: #4338CA; }
 .branchCount {
   font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
-  font-size: 10px;
+  font-size: 9px;
   color: #5B6B85;
   background: white;
-  padding: 1px 6px;
+  padding: 0 5px;
   border-radius: 3px;
   border: 1px solid #E2E7F0;
 }
 .nodeStack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
@@ -376,7 +471,7 @@
    branch stack height (`align-self: stretch`) so the fork tips line up
    with each branch's vertical center. */
 .fork {
-  flex: 0 0 38px;
+  flex: 0 0 26px;
   align-self: stretch;
   display: flex;
   align-items: stretch;
@@ -418,8 +513,8 @@
 .node {
   background: white;
   border: 1px solid #E2E7F0;
-  border-radius: 8px;
-  padding: 8px 11px;
+  border-radius: 6px;
+  padding: 5px 8px;
   box-shadow: 0 1px 2px rgba(10,31,68,0.05);
   position: relative;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.2s ease;
@@ -446,8 +541,8 @@
 .nodeRow1 {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 2px;
   min-width: 0;
 }
 .nodeMain {
@@ -455,14 +550,14 @@
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 .nodeRoleInline {
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 400;
   color: #5B6B85;
   white-space: nowrap;
@@ -472,15 +567,16 @@
 }
 .nodeRoleInline::before {
   content: '·';
-  margin-right: 5px;
+  margin-right: 4px;
   color: #A0AEC0;
 }
 .nodeIcon {
-  width: 22px; height: 22px; border-radius: 5px;
+  width: 18px; height: 18px; border-radius: 4px;
   background: #E8F1FB; color: #006FCF;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+.nodeIcon svg { width: 11px; height: 11px; }
 .nodeIcon.purple { background: #F0E9FA; color: #7048B0; }
 .nodeIcon.teal   { background: #DDF2F2; color: #1F8A8A; }
 .nodeIcon.amber  { background: #FCF1D8; color: #B7791F; }
@@ -489,17 +585,17 @@
 .nodeName {
   flex: 1;
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #0F1B33;
-  line-height: 1.25;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
 .nodeStatus {
-  width: 7px; height: 7px; border-radius: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
   background: #A0AEC0;
   flex-shrink: 0;
 }
@@ -516,40 +612,33 @@
    where the role is a fixed label, not a per-call sub-instruction. */
 .nodeRole {
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 10px;
+  font-size: 9px;
   color: #5B6B85;
-  line-height: 1.35;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.subQuestion {
-  margin-top: 6px;
-  padding: 7px 10px;
-  background: rgba(0,111,207,0.06);
-  border-left: 2px solid rgba(0,111,207,0.4);
-  border-radius: 0 4px 4px 0;
-  /* Sans-serif at a slightly larger body size for easier scanning — italic
-     serif read as decorative; this reads as instructional. */
-  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 11.5px;
-  font-weight: 400;
-  font-style: normal;
-  color: #2C3A55;
-  line-height: 1.5;
-  letter-spacing: 0.005em;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-  animation: fadeIn 0.25s ease-out;
+/* Per-call sub-question — the actual instruction the orchestrator
+ * passed to this specialist. Clamped to 2 lines with ellipsis so the
+ * node stays compact; full text in the tooltip on hover. */
+.nodeSubQuestion {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 9.5px;
+  font-style: italic;
+  color: #4A5870;
+  line-height: 1.32;
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
-.subQuestion::before {
-  content: '› ';
-  color: #79BDFF;
-  font-weight: 600;
-  margin-right: 1px;
-}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -573,10 +662,10 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 5px;
-  padding-top: 5px;
+  margin-top: 3px;
+  padding-top: 3px;
   border-top: 1px dashed #E2E7F0;
-  font-size: 9.5px;
+  font-size: 8.5px;
   color: #8593AB;
 }
 .nodeTime {
@@ -586,18 +675,25 @@
 }
 
 .nodePlaceholder {
-  padding: 12px 11px;
+  /* Matches `.node` padding so the placeholder→Node swap doesn't change
+   * the slot's pixel height. See feedback_orchestration_flow_ux.md
+   * preference #3 (sequential expansion, no sudden layout shifts). */
+  padding: 5px 8px;
   background: rgba(255,255,255,0.5);
   border: 1px dashed #E2E7F0;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   color: #8593AB;
   text-align: center;
   font-style: italic;
   /* Fill the nodeStack so empty branches look intentionally sized. When
-     the placeholder is swapped for a real node, the parent's height stays
-     fixed at 220px and only the inner content changes. */
+     the placeholder is swapped for real nodes, the parent's inline
+     height (computed in the .tsx as HEADER + N*SLOT) stays predictable
+     and only the inner content changes. */
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 0;
   display: flex;
   align-items: center;

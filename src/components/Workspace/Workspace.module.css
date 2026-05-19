@@ -17,10 +17,70 @@
 }
 
 .rightStack {
+  /* Upper row: reasoning trace (full width). Lower row: tabbed
+   * container that switches between OrchestrationFlow and PlotPanel.
+   *
+   * Default 1fr / 1fr — balanced on hard-refresh. The user's dragged
+   * size persists via `--row-upper` and overrides on subsequent loads. */
   display: grid;
-  grid-template-rows: var(--row-trace, 1fr) 4px var(--row-flow, 1fr);
+  grid-template-rows: var(--row-upper, 1fr) 4px 1fr;
   overflow: hidden;
   min-height: 0;
+}
+
+/* Lower tabbed container — tab strip at the top, the active tab's
+ * panel fills the rest. Both panels mount eagerly (only `display:none`
+ * hides the inactive one) so vega views + auto-scale observers in
+ * each panel don't churn through mount cycles on every tab flip. */
+.lowerTabbed {
+  display: flex;
+  flex-direction: column;
+  background: #F4F6FA;
+  overflow: hidden;
+  min-height: 0;
+}
+.tabStrip {
+  display: flex;
+  gap: 0;
+  padding: 0 8px;
+  border-bottom: 1px solid #E2E7F0;
+  background: linear-gradient(180deg, #FAFBFD, #F4F6FA);
+  flex-shrink: 0;
+}
+.tab {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5B6B85;
+  background: transparent;
+  border: 0;
+  padding: 8px 14px 7px;
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: -0.005em;
+  transition: color 0.15s;
+}
+.tab:hover { color: #0A1F44; }
+.tabActive {
+  color: #006FCF;
+}
+.tabActive::after {
+  /* Underline bar — matches the project's other "active rail" affordances. */
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px; bottom: -1px;
+  height: 2px;
+  background: #006FCF;
+  border-radius: 1px;
+}
+.tabPane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .rightSection {

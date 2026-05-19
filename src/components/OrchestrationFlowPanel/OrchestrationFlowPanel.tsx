@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useStore } from '../../store'
 import type { AgentRun, ToolCall, Turn } from '../../types'
 import s from './OrchestrationFlowPanel.module.css'
@@ -21,28 +22,117 @@ type NodeStatus = 'idle' | 'running' | 'done' | 'error'
  * turns right into the two parallel branches (curated reports + specialist
  * team), both feeding the Synthesis node on the far right.
  */
+/**
+ * Auto-fit the flow visualization into its glass card. The glass now
+ * FILLS the canvas (self-adaptive to panel size); the inner `.flowFrame`
+ * has fixed natural dimensions (900×480) and is scaled via a CSS
+ * variable so its layout box fits the glass at any panel size.
+ *
+ * Caps:
+ *   - 1.6× upper bound: the natural design size renders cleanly when
+ *     scaled up moderately. Beyond that text starts looking blocky and
+ *     line-clamp ellipsis become visible against the rest.
+ *   - 0.35× lower bound: prevents the flow from collapsing into an
+ *     illegible thumbnail on extremely narrow panels (the canvas's
+ *     overflow:hidden clips anything that still doesn't fit).
+ *
+ * The observer is wired to both elements AND re-fires whenever the
+ * glass changes its CONTENT (e.g. compact → expanded when the chat
+ * agent confirms pass): a second ResizeObserver watches the inner
+ * `.flow` so we re-measure when the unscaled flow's intrinsic size
+ * changes, not just when the canvas resizes around it.
+ */
+function useFlowScale() {
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const glassRef = useRef<HTMLDivElement | null>(null)
+  const frameRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const glass = glassRef.current
+    const frame = frameRef.current
+    if (!canvas || !glass || !frame) return
+
+    let raf = 0
+    const recompute = () => {
+      // Coalesce bursts of ResizeObserver callbacks so we measure once
+      // per frame (cheaper + avoids feedback when our own transform
+      // change triggers a layout pass).
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        // Glass available inner box (subtract its own padding so the
+        // frame's scaled rendering doesn't bleed through the edge).
+        const cs = window.getComputedStyle(glass)
+        const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+        const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
+        const availW = Math.max(1, glass.clientWidth - padX)
+        const availH = Math.max(1, glass.clientHeight - padY)
+
+        // Frame NATURAL size. offsetWidth/offsetHeight reflect the layout
+        // box (transform doesn't feed back), so we read the actual
+        // intrinsic dimensions even when --flow-scale ≠ 1.
+        const naturalW = frame.offsetWidth
+        const naturalH = frame.offsetHeight
+        if (naturalW < 1 || naturalH < 1) return
+
+        const fitW = availW / naturalW
+        const fitH = availH / naturalH
+        // Cap at 2.0 (was 1.6) so wide panels get a generously-sized
+        // diagram instead of leaving big empty margins around it. The
+        // natural frame is 880×340; at 2× that's 1760×680 which is
+        // still readable at typical screen resolutions.
+        const scale = Math.min(fitW, fitH, 2.0)
+        const clamped = Math.max(0.35, scale)
+        canvas.style.setProperty('--flow-scale', clamped.toFixed(3))
+      })
+    }
+
+    const ro = new ResizeObserver(recompute)
+    ro.observe(canvas)
+    ro.observe(glass)
+    ro.observe(frame)
+    recompute()
+    return () => {
+      ro.disconnect()
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  return { canvasRef, glassRef, frameRef }
+}
+
 export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   const turns = useStore((st) => (caseId ? st.turns[caseId] : undefined)) ?? EMPTY_TURNS
   const activeTurnId = useStore((st) => (caseId ? st.activeTurnId[caseId] : null))
-  // Auto-follow the LATEST streaming turn. When a new turn is in flight,
-  // the user almost always wants to see THAT turn's progress, not whatever
-  // they last clicked. Critical: must use `findLast` (NOT `find`) — when
-  // the user asks a follow-up before the previous turn's `turn_done` event
-  // has been processed, BOTH turns have status='streaming' simultaneously,
-  // and `find` would return the older one and freeze the panel on it.
-  // Once the streaming turn completes (status moves off 'streaming'), we
-  // fall back to the user's selection.
+  const { canvasRef, glassRef, frameRef } = useFlowScale()
+  // Selection priority — per
+  // AgenticSys_v2/.claude/memory/feedback_orchestration_flow_ux.md:
+  //   1. User-selected turn (activeTurnId) — wins even during streaming
+  //      of a different turn. Reviewers often look back at a prior turn
+  //      while waiting on the next one; the panel must NOT snap them out.
+  //   2. Streaming turn — followed only when no explicit selection.
+  //      `findLast` (not `find`) handles the race where a follow-up
+  //      arrives before the prior turn's `turn_done` event has been
+  //      processed; without it we could freeze on a stale streaming turn.
+  //   3. Latest turn — the post-streaming fallback.
+  //
+  // The store's `startTurn` already auto-promotes activeTurnId ONLY
+  // when the user was on the latest turn — so clicking an older turn
+  // creates a sticky pointer that survives the next `turn_started`.
+  const userSelectedTurn = activeTurnId
+    ? turns.find((t) => t.turn_id === activeTurnId) ?? null
+    : null
   const streamingTurn = turns.findLast((t) => t.status === 'streaming') ?? null
   const turn =
+    userSelectedTurn ??
     streamingTurn ??
-    turns.find((t) => t.turn_id === activeTurnId) ??
     turns[turns.length - 1] ??
     null
 
   if (!turn) {
     return (
       <div className={s.panel}>
-        <div className={s.head}><h3 className={s.title}>Orchestration Flow</h3></div>
         <div className={s.empty}>
           <strong>No turn selected</strong>
           The agent graph will render here as soon as a question is asked.
@@ -59,14 +149,16 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   if (isCachedReplay) {
     return (
       <div className={s.panel}>
+        {/* Status pill only — the panel name comes from the tab strip
+            above; repeating it as an internal header is redundant. */}
         <div className={s.head}>
-          <h3 className={s.title}>Orchestration Flow</h3>
           <StatusPill turn={turn} />
         </div>
-        <div className={s.canvas}>
-          <div className={`${s.glass} ${s.expanded}`}>
+        <div ref={canvasRef} className={s.canvas}>
+          <div ref={glassRef} className={`${s.glass} ${s.expanded}`}>
             <div className={s.gridBg} />
-            <div className={s.flow}>
+            <div ref={frameRef} className={s.flowFrame}>
+            <div className={s.flow} data-flow-content>
               <div className={s.leftWrapper}>
                 <div className={s.compactChain}>
                   <div className={s.questionCard}>
@@ -97,6 +189,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                 </div>
               </div>
             </div>
+            </div>
           </div>
         </div>
       </div>
@@ -107,32 +200,37 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   const allCalls: ToolCall[] = turn.team_plan ?? []
   const reportCalls = allCalls.filter((c) => c.tool === 'report_agent')
   const teamCalls = allCalls.filter((c) => c.tool !== 'report_agent')
-  // Within the team branch, split regular specialists from the general
-  // (cross-review) specialist so the latter always renders last as a
-  // distinct second part of the branch.
+  // general_specialist is conceptually part of the team (cross-specialist
+  // reviewer). Render it as just another team-branch entry — visually
+  // distinguished by its own icon — and sort it last so the per-domain
+  // specialists come first.
   const specialistCalls = teamCalls.filter((c) => c.tool !== 'general_specialist')
   const generalSpecialistCalls = teamCalls.filter((c) => c.tool === 'general_specialist')
-  const showTeamDivider = specialistCalls.length > 0 && generalSpecialistCalls.length > 0
 
-  // Branch heights scale with the number of agents in each branch so a
-  // 2-specialist team visually reads as bigger than a 1-report side.
-  // SLOT is a generous estimate per node so nodes don't need to scroll
-  // inside the branch in typical cases. HEADER covers branch padding +
-  // header row. The team branch reserves extra space when a divider is
-  // shown between the regular specialists and the general specialist.
-  const SLOT = 100
-  const HEADER = 40
+  // Branch heights scale proportionally to the number of agents in each
+  // branch. The team branch with 4 specialists reads as visibly taller
+  // than the report branch with 1 entry, instead of both being padded
+  // to a shared maximum. Fork connector tips re-target the actual
+  // vertical center of each branch using the computed percentages.
+  //
+  // SLOT sizes the per-node footprint. Each branch node now renders:
+  //   icon-row (≈20px) + stacked role (≈14px) + sub-question (2 lines
+  //   ≈25px) + detail-foot (≈14px) + padding/borders (≈12px) ≈ 85px.
+  // SLOT bumped to 92 to keep nodes from getting clipped at the
+  // bottom of their branch (especially when sub-questions wrap).
+  const SLOT = 92
+  const HEADER = 28
   const reportSlots = Math.max(1, reportCalls.length)
   const teamSlots = Math.max(1, teamCalls.length)
   const reportHeight = HEADER + reportSlots * SLOT
-  const teamHeight = HEADER + teamSlots * SLOT + (showTeamDivider ? 28 : 0)
+  const teamHeight = HEADER + teamSlots * SLOT
   const branchGap = 10
   const totalBranchH = reportHeight + branchGap + teamHeight
   // Fork tip Y positions as percentages of the branchStack height — the
   // ForkOut/ForkIn SVGs use viewBox 0..100 and stretch vertically to the
   // branchStack, so these percentages line the connector tips up with
-  // each branch's vertical center even when the two branches differ in
-  // height.
+  // each branch's ACTUAL vertical center. Unequal heights → the team
+  // tip sits proportionally further from the report tip.
   const reportCenterPct = ((reportHeight / 2) / totalBranchH) * 100
   const teamCenterPct = ((reportHeight + branchGap + teamHeight / 2) / totalBranchH) * 100
 
@@ -191,15 +289,17 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
 
   return (
     <div className={s.panel}>
+      {/* Status pill only — the panel name comes from the tab strip
+          above; repeating it as an internal header is redundant. */}
       <div className={s.head}>
-        <h3 className={s.title}>Orchestration Flow</h3>
         <StatusPill turn={turn} />
       </div>
 
-      <div className={s.canvas}>
-        <div className={`${s.glass} ${showOrchStage ? s.expanded : ''}`}>
+      <div ref={canvasRef} className={s.canvas}>
+        <div ref={glassRef} className={`${s.glass} ${showOrchStage ? s.expanded : ''}`}>
           <div className={s.gridBg} />
-          <div className={s.flow}>
+          <div ref={frameRef} className={s.flowFrame}>
+          <div className={`${s.flow} ${showOrchStage ? '' : s.flowCompact}`} data-flow-content>
 
             {/* ── Left column ── */}
             <div className={s.leftWrapper}>
@@ -248,40 +348,77 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                   <div className={s.lowerHalf} />
                 </>
               ) : (
-                <div className={s.compactChain}>
-                  <div className={s.questionCard}>
-                    <div className={s.questionHead}>
-                      <span className={s.questionLabel}>Reviewer Question</span>
-                      <button className={s.chatJump} onClick={handleJumpToChat} title="Jump to this question in the chat">
-                        <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M8 2v10M4 8l4 4 4-4" />
-                        </svg>
-                        chat
-                      </button>
+                // Compact mode renders the SAME skeleton as expanded —
+                // upperHalf (question + arrow + chat agent + arrow) +
+                // Orchestrator node + lowerHalf — with the orchestrator
+                // wrapped in `.reserved` so it takes its layout space
+                // but is invisible. This pins the Chat Agent at the
+                // same pixel y in BOTH modes, satisfying the "shared
+                // agent same position" preference in
+                // AgenticSys_v2/.claude/memory/feedback_orchestration_flow_ux.md.
+                <>
+                  <div className={s.upperHalf}>
+                    <div className={s.verticalChain}>
+                      <div className={s.questionCard}>
+                        <div className={s.questionHead}>
+                          <span className={s.questionLabel}>Reviewer Question</span>
+                          <button className={s.chatJump} onClick={handleJumpToChat} title="Jump to this question in the chat">
+                            <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M8 2v10M4 8l4 4 4-4" />
+                            </svg>
+                            chat
+                          </button>
+                        </div>
+                        <div className={s.questionText} title={turn.question}>{turn.question}</div>
+                      </div>
+
+                      <DownArrow status={chatStatus === 'done' ? 'done' : chatStatus === 'running' ? 'active' : 'idle'} />
+
+                      <Node
+                        name="Chat Agent"
+                        role="Screen + scope check"
+                        status={chatStatus}
+                        detail={
+                          turn.question_check
+                            ? (turn.question_check.passed ? 'passed' : (turn.question_check.reason || 'rejected'))
+                            : ''
+                        }
+                        iconKind="chat"
+                        roleStacked
+                      />
+
+                      <div className={s.reserved} aria-hidden="true">
+                        <DownArrow status="idle" />
+                      </div>
                     </div>
-                    <div className={s.questionText} title={turn.question}>{turn.question}</div>
                   </div>
 
-                  <DownArrow status={chatStatus === 'done' ? 'done' : chatStatus === 'running' ? 'active' : 'idle'} />
+                  <div className={s.reserved} aria-hidden="true">
+                    <Node
+                      name="Orchestrator"
+                      role="—"
+                      status="idle"
+                      detail=""
+                      iconKind="orchestrator"
+                      roleStacked
+                    />
+                  </div>
 
-                  <Node
-                    name="Chat Agent"
-                    role="Screen + scope check"
-                    status={chatStatus}
-                    detail={
-                      turn.question_check
-                        ? (turn.question_check.passed ? 'passed' : (turn.question_check.reason || 'rejected'))
-                        : ''
-                    }
-                    iconKind="chat"
-                    roleStacked
-                  />
-                </div>
+                  <div className={s.lowerHalf} />
+                </>
               )}
             </div>
 
-            {showOrchStage && (
-            <>
+            {/* The right side (fork + branches + fork + synthesis) ALWAYS
+                renders so the diagram occupies the same layout box across
+                turns. In compact mode the parent `.flow` carries
+                `s.flowCompact`, which hides the right-side children via
+                CSS while preserving their layout boxes. Result: every
+                turn has the same canvas footprint, the chat agent at
+                the same pixel x AND y, and no "sudden layout jump"
+                when compact → expanded fires.
+                See .claude/memory/feedback_orchestration_flow_ux.md.
+             */}
             {/* Fork — orchestrator bifurcates to Report + Team branches */}
             <ForkOut
               topStatus={
@@ -332,6 +469,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                           detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                           errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
                           subQuestion={tc.sub_question}
+                          roleStacked
                         />
                       )
                     })
@@ -363,18 +501,21 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                           <Node
                             key={tc.call_id}
                             name={tc.tool}
-                            role={`${tc.tool} specialist`}
+                            role="domain specialist"
                             iconKind="specialist"
                             status={status}
                             detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                             errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
                             subQuestion={tc.sub_question}
+                            roleStacked
                           />
                         )
                       })}
-                      {showTeamDivider && (
-                        <div className={s.teamDivider}><span>cross-review</span></div>
-                      )}
+                      {/* general_specialist renders flush after the
+                          domain specialists — no divider. Its distinct
+                          icon ("general") + "cross-specialist review" role
+                          already make it visually identifiable inside the
+                          team branch. */}
                       {generalSpecialistCalls.map((tc) => {
                         const run = runFor(tc, turn.agent_runs)
                         const status = runStatus(run, turn.status)
@@ -388,6 +529,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                             detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                             errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
                             subQuestion={tc.sub_question}
+                            roleStacked
                           />
                         )
                       })}
@@ -417,7 +559,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
             />
 
             {/* ── Synthesis (right) ── */}
-            <div className={s.synthCol}>
+            <div className={s.synthCol} data-synthesis>
+
               <Node
                 name="Synthesis"
                 role="Reconcile · draft"
@@ -442,9 +585,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                 roleStacked
               />
             </div>
-            </>
-            )}
 
+          </div>
           </div>
         </div>
       </div>
@@ -689,8 +831,9 @@ function NodeIcon({ kind }: { kind: IconKind }) {
 
 function Node({
   name, role, status, iconClass = '', iconKind = 'default',
-  detail, errorReason: errReason, subQuestion, subQuestionFull,
+  detail, errorReason: errReason,
   roleStacked = false,
+  subQuestion,
 }: {
   name: string
   role: string
@@ -699,14 +842,18 @@ function Node({
   iconKind?: IconKind
   detail: string
   errorReason?: string
-  subQuestion?: string
-  subQuestionFull?: string
   /** When true, role renders as a second line below the name (used for the
    *  fixed nodes — Chat Agent, Orchestrator, Synthesis — where the role is a
    *  static descriptor). When false (default), role renders inline next to
    *  the name with a "·" separator (used for branch specialists where the
    *  role labels the agent's domain). */
   roleStacked?: boolean
+  /** Per-call sub-question the orchestrator dispatched to this specialist.
+   *  Renders as a clamped italic snippet below the role so the reviewer
+   *  can scan WHAT each specialist was asked at a glance. Omit on fixed
+   *  nodes (Chat Agent, Orchestrator, Synthesis) where there's no
+   *  per-call instruction. */
+  subQuestion?: string
 }) {
   const statusCls =
     status === 'done'    ? s.done :
@@ -732,7 +879,7 @@ function Node({
         <div className={s.nodeRole} title={role}>{role}</div>
       )}
       {subQuestion && (
-        <div className={s.subQuestion} title={subQuestionFull || subQuestion}>{subQuestion}</div>
+        <div className={s.nodeSubQuestion} title={subQuestion}>{subQuestion}</div>
       )}
       {status === 'error' && errReason && (
         <div className={s.errorDetail} title={errReason}>{errReason}</div>

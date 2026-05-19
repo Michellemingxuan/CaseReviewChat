@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import type { Message } from '../../types'
 import styles from './MessageBubble.module.css'
 
@@ -52,7 +53,16 @@ export function MessageBubble({ message, onRewind, onSelectTurn, isActive }: Pro
             }
           }}
         >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+          {/* rehype-raw allows the markdown renderer to parse inline HTML
+              (e.g. `<table>` / `<b>` the orchestrator sometimes emits in
+              FinalAnswer.answer instead of GFM-table syntax). Without it
+              tags render as literal escaped text — see screenshot in
+              the case 366 thread. Agent messages are server-authored and
+              never reflect untrusted reviewer input, so the XSS surface
+              is the same as before. */}
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+            {message.text}
+          </ReactMarkdown>
         </div>
         {hovered && (
           <button

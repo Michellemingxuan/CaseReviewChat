@@ -4,7 +4,6 @@ import remarkGfm from 'remark-gfm'
 import { useStore } from '../../store'
 import type {
   AgentRun,
-  ChartInfo,
   ReportDraftPayload,
   ReviewReportPayload,
   SpecialistPayload,
@@ -30,16 +29,26 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
   const activeTurnId = useStore((st) => (caseId ? st.activeTurnId[caseId] : null))
   const setActiveTurn = useStore((st) => st.setActiveTurn)
 
-  // Auto-follow the LATEST streaming turn. Critical: must use `findLast`
-  // (NOT `find`) — when the user asks a follow-up before the previous
-  // turn's `turn_done` has been processed, BOTH turns have
-  // status='streaming' for an instant, and `find` would return the older
-  // one and freeze this panel on it. Falls back to the user's clicked turn
-  // (or the last turn) once streaming completes.
+  // Selection priority — per
+  // AgenticSys_v2/.claude/memory/feedback_orchestration_flow_ux.md:
+  //   1. User-selected turn (activeTurnId) — wins even during streaming
+  //      of a different turn. Reviewers must be able to look back at a
+  //      prior turn's evidence while the new turn renders.
+  //   2. Streaming turn — followed only when no explicit selection.
+  //      `findLast` handles the race where a follow-up arrives before
+  //      the prior turn's `turn_done` event has been processed.
+  //   3. Latest turn — the post-streaming fallback.
+  //
+  // The store's `startTurn` auto-promotes activeTurnId ONLY when the
+  // user was on the latest turn before, so clicking an older turn
+  // creates a sticky pointer that survives the next `turn_started`.
+  const userSelectedTurn = activeTurnId
+    ? turns.find((t) => t.turn_id === activeTurnId) ?? null
+    : null
   const streamingTurn = turns.findLast((t) => t.status === 'streaming') ?? null
   const turn =
+    userSelectedTurn ??
     streamingTurn ??
-    turns.find((t) => t.turn_id === activeTurnId) ??
     turns[turns.length - 1] ??
     null
 
@@ -98,22 +107,12 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
         ) : (
           <>
             <TeamConstructionBlock turn={turn} />
-            {turn.agent_runs.map((r) => {
-              // Filter charts whose `specialist` matches this agent's `tool`
-              // — they appear inline at the bottom of THIS specialist's
-              // block so each plot lives next to the analysis it came from.
-              const runCharts = (turn.charts ?? []).filter(
-                (c) => c.specialist === r.tool
-              )
-              return <AgentBlock key={r.call_id} run={r} charts={runCharts} />
-            })}
-            {/* Orphan charts whose specialist didn't show up in agent_runs
-                — rare; surface them as a fallback so nothing is silently lost. */}
-            {(() => {
-              const known = new Set(turn.agent_runs.map((r) => r.tool))
-              const orphan = (turn.charts ?? []).filter((c) => !known.has(c.specialist))
-              return orphan.length > 0 ? <ChartsBlock charts={orphan} /> : null
-            })()}
+            {turn.agent_runs.map((r) => (
+              <AgentBlock key={r.call_id} run={r} />
+            ))}
+            {/* Charts live in the dedicated PlotPanel below — kept out
+                of the reasoning trace so the reviewer reads the prose
+                analysis and inspects plots independently. */}
           </>
         )}
         <FinalSynthesisBlock turn={turn} />
@@ -123,97 +122,6 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-
-/**
- * Charts-block. Click-to-open buttons for every KP this turn that has a
- * rendered chart, grouped by specialist. Charts come in via the `chart`
- * SSE event — they're NOT inlined in the chat answer (kept clean). Each
- * button shows the chart's topic + claim; clicking opens a full-size
- * preview in a lightweight modal.
- */
-function ChartsBlock({ charts }: { charts: ChartInfo[] }) {
-  const [open, setOpen] = useState<ChartInfo | null>(null)
-  if (!charts.length) return null
-
-  // Group by specialist for visual scanning.
-  const bySpecialist = new Map<string, ChartInfo[]>()
-  for (const c of charts) {
-    const list = bySpecialist.get(c.specialist) ?? []
-    list.push(c)
-    bySpecialist.set(c.specialist, list)
-  }
-
-  const kindIcon = (kind: string) =>
-    kind === 'trend' ? '📈' : kind === 'share' ? '📊' : kind === 'bar' ? '📉' : '🔎'
-
-  return (
-    <div className={s.block}>
-      <div className={`${s.bracket} ${s.charts}`}>
-        <span className={s.tag}>[ Charts ]</span>
-        <span className={s.meta}>
-          {charts.length} chart{charts.length === 1 ? '' : 's'} this turn
-        </span>
-      </div>
-      {[...bySpecialist.entries()].map(([specialist, list]) => (
-        <div key={specialist} className={s.chartsGroup}>
-          <p className={s.chartsGroupHead}>{specialist}</p>
-          <div className={s.chartsRow}>
-            {list.map((c) => (
-              <button
-                key={`${c.specialist}/${c.topic}`}
-                type="button"
-                className={s.chartButton}
-                title={c.claim || c.topic}
-                onClick={() => setOpen(c)}
-              >
-                <span className={s.chartIcon}>{kindIcon(c.kind)}</span>
-                <span className={s.chartLabel}>
-                  <span className={s.chartTopic}>
-                    {c.topic.replace(/_/g, ' ')}
-                  </span>
-                  {c.claim ? (
-                    <span className={s.chartClaim}>{c.claim}</span>
-                  ) : null}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-      {open ? (
-        <ChartLightbox chart={open} onClose={() => setOpen(null)} />
-      ) : null}
-    </div>
-  )
-}
-
-function ChartLightbox({ chart, onClose }: { chart: ChartInfo; onClose: () => void }) {
-  return (
-    <div className={s.lightboxBackdrop} onClick={onClose} role="dialog" aria-modal="true">
-      <div className={s.lightboxBody} onClick={(e) => e.stopPropagation()}>
-        <div className={s.lightboxHead}>
-          {/* Compact head: just the claim (it carries both topic context AND
-              the actual finding) plus a close button. The chart-button
-              already showed the topic name; repeating it here was
-              redundant. */}
-          {chart.claim ? <p className={s.lightboxClaim}>{chart.claim}</p> : null}
-          <button type="button" className={s.lightboxClose} onClick={onClose}>×</button>
-        </div>
-        <img className={s.lightboxImage} src={chart.url} alt={chart.topic} />
-        {chart.source_call ? (
-          <p className={s.lightboxSource}>
-            <span className={s.k}>{chart.specialist} · via:</span>{' '}
-            <code>{chart.source_call}</code>
-          </p>
-        ) : (
-          <p className={s.lightboxSource}>
-            <span className={s.k}>{chart.specialist}</span>
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -341,7 +249,7 @@ function teamSummary(tp: NonNullable<Turn['team_plan']>): React.ReactNode {
   return parts.map((p, i) => <span key={i}>{p}</span>)
 }
 
-function AgentBlock({ run, charts = [] }: { run: AgentRun; charts?: ChartInfo[] }) {
+function AgentBlock({ run }: { run: AgentRun }) {
   const { tool, payload, duration_ms } = run
   const labelMap: Record<string, { tag: string; cls: string }> = {
     report_agent:       { tag: '[ Report Agent Analysis ]',         cls: s.report },
@@ -366,40 +274,9 @@ function AgentBlock({ run, charts = [] }: { run: AgentRun; charts?: ChartInfo[] 
       ) : (
         <SpecialistOutputBody payload={payload as SpecialistPayload} />
       )}
-      {/* Inline chart row — lives at the bottom of THIS specialist's block
-          so every chart stays next to the analysis it came from, not in a
-          centralized list at the end of the trace. */}
-      {charts.length > 0 ? <InlineCharts charts={charts} /> : null}
+      {/* Charts now live in the dedicated PlotPanel; we deliberately do NOT
+          inline them here so the reasoning trace stays prose-only. */}
     </div>
-  )
-}
-
-function InlineCharts({ charts }: { charts: ChartInfo[] }) {
-  const [open, setOpen] = useState<ChartInfo | null>(null)
-  const kindIcon = (kind: string) =>
-    kind === 'trend' ? '📈' : kind === 'share' ? '📊' : kind === 'bar' ? '📉' : '🔎'
-  return (
-    <>
-      <p className={s.bullet}><span className={s.k}>Charts:</span></p>
-      <div className={s.chartsRow}>
-        {charts.map((c) => (
-          <button
-            key={`${c.specialist}/${c.topic}`}
-            type="button"
-            className={s.chartButton}
-            title={c.claim || c.topic}
-            onClick={() => setOpen(c)}
-          >
-            <span className={s.chartIcon}>{kindIcon(c.kind)}</span>
-            <span className={s.chartLabel}>
-              <span className={s.chartTopic}>{c.topic.replace(/_/g, ' ')}</span>
-              {c.claim ? <span className={s.chartClaim}>{c.claim}</span> : null}
-            </span>
-          </button>
-        ))}
-      </div>
-      {open ? <ChartLightbox chart={open} onClose={() => setOpen(null)} /> : null}
-    </>
   )
 }
 

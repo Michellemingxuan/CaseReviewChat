@@ -127,4 +127,85 @@ describe('store', () => {
     expect(turns).toHaveLength(1)
     expect(turns[0].charts ?? []).toHaveLength(0)
   })
+
+  // ── upsertPendingChart + chart→pending clearing ──────────────────────────
+
+  it('upsertPendingChart adds a placeholder keyed by (specialist, topic)', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'modeling', topic: 'fico', kind: 'trend_dual' })
+    const pending = useStore.getState().turns['C-001'][0].pendingCharts ?? []
+    expect(pending).toHaveLength(1)
+    expect(pending[0]).toEqual({ specialist: 'modeling', topic: 'fico', kind: 'trend_dual' })
+  })
+
+  it('upsertPendingChart dedupes — duplicate (specialist, topic) is a no-op', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'modeling', topic: 'fico', kind: 'trend' })
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'modeling', topic: 'fico', kind: 'trend' })
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'modeling', topic: 'other', kind: 'bar' })
+    const pending = useStore.getState().turns['C-001'][0].pendingCharts ?? []
+    expect(pending).toHaveLength(2)
+  })
+
+  it('upsertChart clears matching pendingCharts entry', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    // Two pendings; the chart event matches the first one.
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'modeling', topic: 'fico', kind: 'trend' })
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'bureau',   topic: 'utilization', kind: 'bar' })
+    useStore.getState().upsertChart('C-001', 't1', chart('modeling', 'fico', '/u.png'))
+
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(turn.charts).toHaveLength(1)
+    // Only the bureau/utilization pending remains.
+    expect(turn.pendingCharts).toHaveLength(1)
+    expect(turn.pendingCharts?.[0].specialist).toBe('bureau')
+  })
+
+  it('upsertPendingChart is a no-op when the real chart has already arrived', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().upsertChart('C-001', 't1', chart('modeling', 'fico', '/u.png'))
+    // Late `chart_pending` event for an already-arrived chart — should NOT
+    // produce a placeholder that the user would have to stare at.
+    useStore.getState().upsertPendingChart('C-001', 't1',
+      { specialist: 'modeling', topic: 'fico', kind: 'trend' })
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(turn.pendingCharts ?? []).toHaveLength(0)
+    expect(turn.charts).toHaveLength(1)
+  })
+
+  // ── startTurn activeTurnId behaviour ───────────────────────────────────
+
+  it('startTurn auto-promotes activeTurnId when user is on the latest turn', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
+    useStore.getState().startTurn('C-001', baseTurn('t2'))
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t2')
+  })
+
+  it('startTurn preserves activeTurnId when user has clicked back to an older turn', () => {
+    // Two turns already exist; user clicks the older turn to inspect it.
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().startTurn('C-001', baseTurn('t2'))
+    useStore.getState().setActiveTurn('C-001', 't1')
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
+
+    // Now a new turn starts (server emits turn_started for a fresh
+    // question). The user is intentionally viewing an older turn — their
+    // selection must NOT be clobbered by the new turn's arrival.
+    useStore.getState().startTurn('C-001', baseTurn('t3'))
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
+  })
+
+  it('startTurn auto-promotes when activeTurnId is null', () => {
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().setActiveTurn('C-001', null)
+    useStore.getState().startTurn('C-001', baseTurn('t2'))
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t2')
+  })
 })

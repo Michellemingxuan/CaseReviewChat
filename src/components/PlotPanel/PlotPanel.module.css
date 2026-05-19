@@ -1,0 +1,323 @@
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #F4F6FA 0%, #EEF1F7 100%);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.head {
+  padding: 6px 14px 4px;
+  border-bottom: 1px solid #E2E7F0;
+  flex-shrink: 0;
+  background: #F4F6FA;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0A1F44;
+  margin: 0;
+}
+.count {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: #5B6B85;
+  background: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #E2E7F0;
+}
+
+.empty {
+  padding: 32px 22px;
+  color: #5B6B85;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+.empty strong { display: block; color: #0A1F44; margin-bottom: 4px; font-weight: 600; }
+
+/* Body — splits horizontally: vertical tab column on the LEFT,
+ * chart viewer fills the rest. Both sized off the panel's
+ * remaining height so the figure scales with the panel. */
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Tab strip — vertical column on the left, one row per chart.
+ * Scrolls vertically only when the chart count exceeds the available
+ * panel height. */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 8px 12px;
+  overflow-y: auto;
+  flex: 0 0 200px;
+  border-right: 1px solid #E2E7F0;
+  scrollbar-width: thin;
+}
+.tabs::-webkit-scrollbar { width: 5px; }
+.tabs::-webkit-scrollbar-track { background: transparent; }
+.tabs::-webkit-scrollbar-thumb { background: rgba(10,31,68,0.18); border-radius: 3px; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  background: white;
+  border: 1px solid #E2E7F0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  color: #2C3A55;
+  flex-shrink: 0;
+  width: 100%;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.tab:hover {
+  border-color: #B6D6F2;
+  background: #F8FBFE;
+}
+.tabActive {
+  border-color: #006FCF;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(0,111,207,0.15);
+}
+.tabIcon { font-size: 13px; line-height: 1; flex-shrink: 0; }
+.tabLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+.tabTopic {
+  font-weight: 600;
+  color: #0F1B33;
+  font-size: 11px;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  width: 100%;
+}
+.tabSpecialist {
+  font-size: 9.5px;
+  color: #5B6B85;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  width: 100%;
+}
+.tabActive .tabTopic { color: #006FCF; }
+
+/* Pending tab — desaturated, with a subtle pulsing accent so the
+ * reviewer can tell at a glance that the chart isn't ready yet. */
+.tabPending {
+  background: repeating-linear-gradient(
+    45deg,
+    #FAFBFD,
+    #FAFBFD 6px,
+    #F4F6FA 6px,
+    #F4F6FA 12px
+  );
+}
+.tabPending .tabTopic { color: #5B6B85; font-style: italic; }
+.tabPending .tabIcon { animation: pendingPulse 1.6s ease-in-out infinite; }
+@keyframes pendingPulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Viewer — sits to the right of the vertical tab column. claim above,
+ * image fills the remaining space (height-constrained → preserves
+ * aspect ratio + always re-sizes when the panel resizes), meta below. */
+.viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 6px 14px 8px;
+  gap: 6px;
+}
+.claim {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 12.5px;
+  color: #2C3A55;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.imageWrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 1px solid #E2E7F0;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(10,31,68,0.05);
+  padding: 0;
+  /* The wrapper takes the remaining flex height. Its dimensions are
+   * dynamic with the panel: when the user resizes the lower (plots)
+   * section taller, `flex: 1` makes the wrapper taller and the image
+   * scales up to fill it. When the section shrinks, the image shrinks
+   * to match. */
+}
+.image {
+  /* Stretch to the wrapper's box (both axes) while preserving aspect
+   * ratio via `object-fit: contain`. This is what makes the chart
+   * RESIZE with the panel — the <img>'s rendered pixels always
+   * match the wrapper's actual size, capped by the source aspect. */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #5B6B85;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.metaKey {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5B6B85;
+}
+.metaSep { color: #CBD5E0; }
+.metaCode {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  background: white;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid #E2E7F0;
+  color: #2D3748;
+}
+
+/* Pending placeholder shown in the viewer when the selected tab is
+ * a `chart_pending` (no PNG arrived yet). */
+.pendingWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: white;
+  border: 1px dashed #CBD5E0;
+  border-radius: 6px;
+  min-height: 0;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E2E7F0;
+  border-top-color: #006FCF;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.pendingTitle {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0A1F44;
+}
+.pendingSub {
+  margin: 0;
+  font-size: 12px;
+  color: #5B6B85;
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.5;
+}
+.pendingSub code {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  background: #F4F6FA;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #E2E7F0;
+}
+
+/* `kind === "table"` rendering — a real HTML table inside the same
+ * imageWrap so the table card lines up visually with chart tabs. */
+.tableScroll {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 8px 10px;
+  background: white;
+}
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  color: #2C3A55;
+}
+.dataTable thead th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0A1F44;
+  padding: 6px 10px 5px;
+  border-bottom: 1.5px solid #0A1F44;
+  background: #F4F6FA;
+  white-space: nowrap;
+}
+.dataTable tbody td {
+  padding: 5px 10px;
+  border-bottom: 1px solid #E2E7F0;
+  font-variant-numeric: tabular-nums;
+}
+.dataTable tbody tr:nth-child(odd) td {
+  background: #FBFCFD;
+}
+.dataTable tbody tr:hover td {
+  background: #EEF4FB;
+}
+.tableEmpty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5B6B85;
+  font-style: italic;
+  font-size: 12px;
+}

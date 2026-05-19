@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AgentRun, CaseList, ChartInfo, Message, SseStatus, StoreState } from './types'
+import type { AgentRun, CaseList, ChartInfo, Message, PendingChart, SseStatus, StoreState } from './types'
 
 const STORAGE_KEY = 'case-review-threads-v6'
 
@@ -90,13 +90,23 @@ export const useStore = create<StoreState>()(
       // ── Turn / trace actions ───────────────────────────────────────────
 
       startTurn: (caseId, turn) =>
-        set((state) => ({
-          turns: {
-            ...state.turns,
-            [caseId]: [...(state.turns[caseId] ?? []), turn],
-          },
-          activeTurnId: { ...state.activeTurnId, [caseId]: turn.turn_id },
-        })),
+        set((state) => {
+          // Auto-follow the latest turn by default, but preserve a user's
+          // explicit selection when they've clicked back to an older turn.
+          // Without this guard, a `turn_started` SSE event for a new
+          // question clobbers the user's selection mid-streaming and the
+          // right-side trace panels snap back to the new turn.
+          const existing = state.turns[caseId] ?? []
+          const prevActive = state.activeTurnId[caseId] ?? null
+          const lastTurnId = existing.length > 0 ? existing[existing.length - 1].turn_id : null
+          const userOnHistorical =
+            prevActive != null && lastTurnId != null && prevActive !== lastTurnId
+          const nextActive = userOnHistorical ? prevActive : turn.turn_id
+          return {
+            turns: { ...state.turns, [caseId]: [...existing, turn] },
+            activeTurnId: { ...state.activeTurnId, [caseId]: nextActive },
+          }
+        }),
 
       patchTurn: (caseId, turnId, patch) =>
         set((state) => {
@@ -136,7 +146,36 @@ export const useStore = create<StoreState>()(
               idx === -1
                 ? [...existing, chart]
                 : existing.map((c, i) => (i === idx ? { ...c, ...chart } : c))
-            return { ...t, charts: merged }
+            // Clear any matching `pendingCharts` entry — the real chart
+            // has arrived and superseded its placeholder.
+            const pending = (t.pendingCharts ?? []).filter(
+              (p) => !(p.specialist === chart.specialist && p.topic === chart.topic)
+            )
+            return { ...t, charts: merged, pendingCharts: pending }
+          })
+          return { turns: { ...state.turns, [caseId]: next } }
+        }),
+
+      upsertPendingChart: (caseId, turnId, pending: PendingChart) =>
+        set((state) => {
+          const list = state.turns[caseId] ?? []
+          const next = list.map((t) => {
+            if (t.turn_id !== turnId) return t
+            // If the actual chart already arrived (rare ordering race),
+            // ignore the pending event so we don't show a stale placeholder.
+            const realAlreadyArrived = (t.charts ?? []).some(
+              (c) => c.specialist === pending.specialist && c.topic === pending.topic
+            )
+            if (realAlreadyArrived) return t
+            const existing = t.pendingCharts ?? []
+            const idx = existing.findIndex(
+              (p) => p.specialist === pending.specialist && p.topic === pending.topic
+            )
+            const merged: PendingChart[] =
+              idx === -1
+                ? [...existing, pending]
+                : existing.map((p, i) => (i === idx ? { ...p, ...pending } : p))
+            return { ...t, pendingCharts: merged }
           })
           return { turns: { ...state.turns, [caseId]: next } }
         }),
