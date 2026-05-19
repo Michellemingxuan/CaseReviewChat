@@ -292,9 +292,21 @@ export function useSSE(caseId: string | null) {
         const p = parse<{ turn_id: string; ended_at: number; duration_ms: number;
                           outcome: Turn['outcome'] }>(e.data)
         if (!p) return
+        // Look up the prior turn state. If an `error` event already
+        // arrived (typical for user-pressed-Stop, where the backend
+        // emits error BEFORE turn_done) the turn is already in
+        // `status: 'error'` — don't overwrite to 'done' or the
+        // orchestration-flow panel loses its interruption indicator
+        // the instant turn_done lands. The other fields (ended_at,
+        // duration_ms, outcome) still update so the trace shows the
+        // turn closed cleanly.
+        const turns = useStore.getState().turns[caseId] ?? []
+        const prior = turns.find((t) => t.turn_id === p.turn_id)
+        const nextStatus: Turn['status'] =
+          prior?.status === 'error' ? 'error' : 'done'
         patchTurn(caseId, p.turn_id, {
           ended_at: p.ended_at, duration_ms: p.duration_ms,
-          outcome: p.outcome, status: 'done',
+          outcome: p.outcome, status: nextStatus,
         })
       })
 
@@ -314,7 +326,11 @@ export function useSSE(caseId: string | null) {
         // turn as failed — the turn can still produce a final answer. Only
         // hard failures (unrecoverable orchestrator/screen errors) terminate.
         if (p.recoverable) return
-        patchTurn(caseId, p.turn_id, { status: 'error', error: p.message })
+        patchTurn(caseId, p.turn_id, {
+          status: 'error',
+          error: p.message,
+          errorKind: p.kind,
+        })
       })
     }
 

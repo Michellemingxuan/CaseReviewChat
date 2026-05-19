@@ -54,3 +54,13 @@
 
 .sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .sendBtn:not(:disabled):hover { opacity: 0.88; }
+
+/* Stop variant — reads as an interrupt action (destructive-ish red),
+   visually distinct from the Send blue so the user doesn't click it
+   reflexively. Reuses the .sendBtn layout (padding, radius, font) so
+   the swap doesn't shift the input row's height when streaming
+   toggles. */
+.stopBtn {
+  background: #b3261e;
+}
+.stopBtn:not(:disabled):hover { background: #8c1e17; opacity: 1; }

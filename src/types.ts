@@ -15,7 +15,15 @@ export type CaseList = {
 
 // ── Trace types — match server.py SSE event payloads ──────────────────────
 
-export type Outcome = 'ok' | 'screen_rejected' | 'out_of_scope' | 'orchestrator_error'
+export type Outcome =
+  | 'ok'
+  | 'screen_rejected'
+  | 'out_of_scope'
+  | 'orchestrator_error'
+  | 'aborted'
+  | 'screen_timeout'
+  | 'timeout'
+  | 'queue_timeout'
 
 export type QuestionCheck = {
   passed: boolean
@@ -149,6 +157,12 @@ export type Turn = {
   outcome?: Outcome
   status: 'streaming' | 'done' | 'error'
   error?: string
+  /** When the error is structured (`error` SSE event with a `kind`
+   *  field), this carries the kind so the orchestration-flow panel can
+   *  distinguish, e.g., "interrupted" (user pressed Stop) from a hard
+   *  LLM error. Today the only kind emitted is `'interrupted'`; other
+   *  errors leave this undefined. */
+  errorKind?: string
 }
 
 export type StoreState = {

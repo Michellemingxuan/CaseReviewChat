@@ -641,17 +641,31 @@ function branchStatus(calls: ToolCall[], runs: AgentRun[], turnStatus: Turn['sta
 
 
 function StatusPill({ turn }: { turn: Turn }) {
+  // When the user pressed Stop, the backend emits an `error` SSE with
+  // `kind: 'interrupted'` and then `turn_done` with
+  // `outcome: 'aborted'`. The frontend preserves the error state (see
+  // useSSE.ts `turn_done` handler) so the pill keeps the error styling
+  // — but the LABEL becomes "interrupted" so the reviewer sees it was
+  // a deliberate user action, not an LLM failure.
+  const isInterrupted = (
+    turn.errorKind === 'interrupted' || turn.outcome === 'aborted'
+  )
   const cls =
+    isInterrupted              ? s.error :
     turn.status === 'streaming' ? s.streaming :
     turn.status === 'error'     ? s.error :
     turn.status === 'done'      ? s.done :
                                   s.idle
   const label =
+    isInterrupted              ? 'interrupted' :
     turn.status === 'streaming' ? 'streaming' :
     turn.status === 'error'     ? 'error' :
     turn.status === 'done'      ? 'done' : 'idle'
   return (
-    <span className={`${s.statusPill} ${cls}`}>
+    <span
+      className={`${s.statusPill} ${cls}`}
+      title={isInterrupted ? (turn.error || 'Stopped by user') : undefined}
+    >
       <span className={s.dot}></span>
       {label}{turn.duration_ms ? ` · ${(turn.duration_ms / 1000).toFixed(2)}s` : ''}
     </span>

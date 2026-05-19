@@ -182,6 +182,96 @@ describe('useSSE', () => {
     expect(turn.error).toContain('orchestrator hard fail')
   })
 
+  it('error event carries `kind` (e.g. interrupted) onto the turn for the orchestration flow', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          message: 'Interrupted — the answer was stopped.',
+          recoverable: false,
+          kind: 'interrupted',
+        }),
+        'error',
+      )
+    })
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(turn.status).toBe('error')
+    expect(turn.errorKind).toBe('interrupted')
+  })
+
+  it('turn_done after an `interrupted` error preserves status=error (does not flip to done)', () => {
+    // Regression: pressing Stop should leave the orchestration-flow
+    // panel showing the interruption indicator. The backend emits
+    // `error` (kind=interrupted) THEN `turn_done` (outcome=aborted).
+    // Without the preservation tweak in useSSE.turn_done, the second
+    // event would clobber status='error' with 'done' and the panel
+    // would lose the interruption visual the instant turn_done lands.
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          message: 'Interrupted',
+          recoverable: false,
+          kind: 'interrupted',
+        }),
+        'error',
+      )
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          ended_at: 100,
+          duration_ms: 99,
+          outcome: 'aborted',
+        }),
+        'turn_done',
+      )
+    })
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(turn.status).toBe('error')        // preserved, not flipped
+    expect(turn.outcome).toBe('aborted')     // still recorded
+    expect(turn.duration_ms).toBe(99)        // turn_done's other fields still applied
+    expect(turn.errorKind).toBe('interrupted')
+  })
+
+  it('turn_done with non-error prior status still goes to status=done', () => {
+    // Negative case: when no error preceded turn_done, the standard
+    // streaming → done transition still works. Guards against the
+    // preservation tweak accidentally pinning EVERY turn to its
+    // prior status.
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          ended_at: 100,
+          duration_ms: 99,
+          outcome: 'ok',
+        }),
+        'turn_done',
+      )
+    })
+    expect(useStore.getState().turns['C-001'][0].status).toBe('done')
+  })
+
   it('chart_pending event adds a placeholder visible until the chart arrives', () => {
     renderHook(() => useSSE('C-001'))
     const es = MockEventSource.instances[0]

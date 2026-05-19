@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useStore } from '../../store'
 import { useSSE } from '../../hooks/useSSE'
-import { postMessage, postRewind } from '../../api'
+import { postMessage, postRewind, postCancelTurn } from '../../api'
 import { ChatHeader } from './ChatHeader'
 import { MessageList } from './MessageList'
 import { InputBar } from './InputBar'
@@ -76,6 +76,19 @@ export function ChatPanel() {
     setActiveTurn(activeCase, turnId)
   }, [activeCase, setActiveTurn])
 
+  const handleStop = useCallback(async () => {
+    if (!activeCase) return
+    try {
+      await postCancelTurn(activeCase)
+      // Clear the typing indicator immediately — the backend will emit
+      // `turn_done(outcome='aborted')` shortly, which would do the same,
+      // but reflecting the user's intent now feels more responsive.
+      setShowTyping(false)
+    } catch (e) {
+      console.error('Failed to cancel turn', e)
+    }
+  }, [activeCase])
+
   if (!activeCase) {
     return (
       <div className={styles.empty}>
@@ -94,7 +107,12 @@ export function ChatPanel() {
         onSelectTurn={handleSelectTurn}
         activeTurnId={activeTurnId}
       />
-      <InputBar onSend={handleSend} prefill={prefill} />
+      <InputBar
+        onSend={handleSend}
+        prefill={prefill}
+        streaming={showTyping}
+        onStop={handleStop}
+      />
     </div>
   )
 }
