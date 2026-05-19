@@ -181,4 +181,317 @@ describe('useSSE', () => {
     expect(turn.status).toBe('error')
     expect(turn.error).toContain('orchestrator hard fail')
   })
+
+  it('chart_pending event adds a placeholder visible until the chart arrives', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    // Specialist calls make_chart — server emits chart_pending immediately.
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          specialist: 'modeling',
+          topic: 'fico_trajectory',
+          kind: 'trend_dual',
+        }),
+        'chart_pending',
+      )
+    })
+
+    let turn = useStore.getState().turns['C-001'][0]
+    expect(turn.pendingCharts).toHaveLength(1)
+    expect(turn.pendingCharts?.[0].specialist).toBe('modeling')
+    expect(turn.pendingCharts?.[0].kind).toBe('trend_dual')
+    expect(turn.charts ?? []).toHaveLength(0)
+
+    // Matching chart event arrives → pending placeholder is cleared.
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          specialist: 'modeling',
+          topic: 'fico_trajectory',
+          url: '/api/cases/C-001/charts/t1-fico_trajectory.png',
+          kind: 'trend_dual',
+        }),
+        'chart',
+      )
+    })
+    turn = useStore.getState().turns['C-001'][0]
+    expect(turn.pendingCharts ?? []).toHaveLength(0)
+    expect(turn.charts).toHaveLength(1)
+  })
+
+  it('orchestrator_retry resets the prior attempt mid-stream state', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    // Seed prior-attempt state so we can confirm reset wipes it.
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          tool_calls: [{ call_id: 'a', tool: 'modeling', sub_question: 'q1' }],
+        }),
+        'team_plan',
+      )
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1', call_id: 'a', tool: 'modeling', started_at: 1,
+        }),
+        'agent_started',
+      )
+    })
+
+    let turn = useStore.getState().turns['C-001'][0]
+    expect(turn.team_plan).toHaveLength(1)
+    expect(turn.agent_runs).toHaveLength(1)
+
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({ turn_id: 't1', attempt: 1, reason: 'model_behavior_error' }),
+        'orchestrator_retry',
+      )
+    })
+
+    turn = useStore.getState().turns['C-001'][0]
+    expect(turn.team_plan).toBeUndefined()
+    expect(turn.agent_runs).toHaveLength(0)
+  })
+
+  it('question_check.passed=false snaps activeTurnId to the rejected turn', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+
+    // Seed TWO prior turns so we can click back to t1 as a historical
+    // selection — startTurn only blocks auto-promote when the user was
+    // on a turn that is NOT the latest.
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q1', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emit({ turn_id: 't2', question: 'q2', started_at: 2 } as unknown as Message,
+              'turn_started')
+    })
+    // User clicks back to t1 (the historical turn).
+    act(() => {
+      useStore.getState().setActiveTurn('C-001', 't1')
+    })
+    // New turn starts — selection priority leaves user on t1.
+    act(() => {
+      es.emit({ turn_id: 't3', question: 'what to eat', started_at: 3 } as unknown as Message,
+              'turn_started')
+    })
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
+
+    // Rejection fires — activeTurnId snaps to the rejected turn so the
+    // user sees the answer.
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't3', passed: false,
+          reason: 'out of scope',
+          redacted_question: 'what to eat',
+          in_scope: false,
+          outcome: 'screen_rejected',
+        }),
+        'question_check',
+      )
+    })
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t3')
+  })
+
+  it('question_check.passed=true does NOT change activeTurnId', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q1', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emit({ turn_id: 't2', question: 'q2', started_at: 2 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      useStore.getState().setActiveTurn('C-001', 't1')
+    })
+    act(() => {
+      es.emit({ turn_id: 't3', question: 'real review q', started_at: 3 } as unknown as Message,
+              'turn_started')
+    })
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
+
+    // Accepted question — user stays on t1 (memory rule: reviewers
+    // look back during long streaming turns).
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't3', passed: true,
+          reason: '',
+          redacted_question: 'real review q',
+          in_scope: true,
+          outcome: 'ok',
+        }),
+        'question_check',
+      )
+    })
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
+  })
+
+  // ─── Reconnect behavior ────────────────────────────────────────────────
+  //
+  // Regression coverage for the "asked a new question after long idle and
+  // got no reasoning trace" symptom. The fix added exponential backoff
+  // capped at 30s, plus visibilitychange / online listeners that force an
+  // immediate reconnect when the tab returns to foreground or the network
+  // comes back.
+
+  describe('reconnect', () => {
+    it('uses exponential backoff after onerror (1s, 2s, 4s, …)', () => {
+      vi.useFakeTimers()
+      try {
+        renderHook(() => useSSE('C-001'))
+        const first = MockEventSource.instances[0]
+        // First failure → 1s delay
+        act(() => { first.onerror?.() })
+        expect(MockEventSource.instances).toHaveLength(1)
+        act(() => { vi.advanceTimersByTime(999) })
+        expect(MockEventSource.instances).toHaveLength(1)
+        act(() => { vi.advanceTimersByTime(1) })
+        expect(MockEventSource.instances).toHaveLength(2)
+
+        // Second failure → 2s delay (no successful open between)
+        const second = MockEventSource.instances[1]
+        act(() => { second.onerror?.() })
+        act(() => { vi.advanceTimersByTime(1999) })
+        expect(MockEventSource.instances).toHaveLength(2)
+        act(() => { vi.advanceTimersByTime(1) })
+        expect(MockEventSource.instances).toHaveLength(3)
+
+        // Third failure → 4s delay
+        const third = MockEventSource.instances[2]
+        act(() => { third.onerror?.() })
+        act(() => { vi.advanceTimersByTime(3999) })
+        expect(MockEventSource.instances).toHaveLength(3)
+        act(() => { vi.advanceTimersByTime(1) })
+        expect(MockEventSource.instances).toHaveLength(4)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('caps backoff at 30s', () => {
+      vi.useFakeTimers()
+      try {
+        renderHook(() => useSSE('C-001'))
+        // Fire 8 consecutive errors with no successful open between them
+        // — 2^7 = 128s would exceed the cap; should clamp to 30s.
+        for (let i = 0; i < 8; i++) {
+          const es = MockEventSource.instances[i]
+          act(() => { es.onerror?.() })
+          act(() => { vi.advanceTimersByTime(30_000) })
+        }
+        // After 8 errors there are 9 instances (initial + 8 retries).
+        expect(MockEventSource.instances).toHaveLength(9)
+
+        // Confirm the cap: the 9th instance's error should still schedule
+        // a 30s (not 60s+) timer.
+        const last = MockEventSource.instances[8]
+        act(() => { last.onerror?.() })
+        act(() => { vi.advanceTimersByTime(29_999) })
+        expect(MockEventSource.instances).toHaveLength(9)
+        act(() => { vi.advanceTimersByTime(1) })
+        expect(MockEventSource.instances).toHaveLength(10)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('resets backoff after successful onopen', () => {
+      vi.useFakeTimers()
+      try {
+        renderHook(() => useSSE('C-001'))
+        // Two consecutive errors → backoff would be 1s, 2s.
+        act(() => { MockEventSource.instances[0].onerror?.() })
+        act(() => { vi.advanceTimersByTime(1000) })
+        act(() => { MockEventSource.instances[1].onerror?.() })
+        act(() => { vi.advanceTimersByTime(2000) })
+        // The 3rd instance opens successfully — should reset clock.
+        act(() => { MockEventSource.instances[2].open() })
+
+        // Next failure should wait 1s (NOT 4s), proving the reset.
+        act(() => { MockEventSource.instances[2].onerror?.() })
+        act(() => { vi.advanceTimersByTime(999) })
+        expect(MockEventSource.instances).toHaveLength(3)
+        act(() => { vi.advanceTimersByTime(1) })
+        expect(MockEventSource.instances).toHaveLength(4)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('forces immediate reconnect on visibilitychange when disconnected', () => {
+      vi.useFakeTimers()
+      try {
+        renderHook(() => useSSE('C-001'))
+        const first = MockEventSource.instances[0]
+        // Error: scheduled to reconnect 1s later.
+        act(() => { first.onerror?.() })
+        // Tab becomes visible BEFORE the 1s timer fires → reconnect now.
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true, value: 'visible',
+        })
+        act(() => {
+          document.dispatchEvent(new Event('visibilitychange'))
+        })
+        // New EventSource constructed immediately; no need to advance time.
+        expect(MockEventSource.instances).toHaveLength(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('does not churn on visibilitychange when already connected', () => {
+      renderHook(() => useSSE('C-001'))
+      const first = MockEventSource.instances[0]
+      // Simulate a healthy open connection: readyState OPEN.
+      Object.defineProperty(first, 'readyState', { configurable: true, value: 1 })
+      act(() => { first.open() })
+      // Tab becomes visible: noop since we're already connected.
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true, value: 'visible',
+      })
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      expect(MockEventSource.instances).toHaveLength(1)
+    })
+
+    it('forces immediate reconnect on online event when disconnected', () => {
+      vi.useFakeTimers()
+      try {
+        renderHook(() => useSSE('C-001'))
+        const first = MockEventSource.instances[0]
+        act(() => { first.onerror?.() })
+        // Network comes back before the 1s backoff fires.
+        act(() => {
+          window.dispatchEvent(new Event('online'))
+        })
+        expect(MockEventSource.instances).toHaveLength(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
 })
