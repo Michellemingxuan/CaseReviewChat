@@ -313,9 +313,8 @@
   border-color: #006FCF;
 }
 .questionText {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
   font-size: 10.5px;
-  font-style: italic;
   color: #2C3A55;
   line-height: 1.35;
   display: -webkit-box;
@@ -549,11 +548,11 @@
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 5px;
+  row-gap: 1px;
+  column-gap: 5px;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 .nodeRoleInline {
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
@@ -621,23 +620,27 @@
 }
 
 /* Per-call sub-question — the actual instruction the orchestrator
- * passed to this specialist. Clamped to 2 lines with ellipsis so the
- * node stays compact; full text in the tooltip on hover. */
+ * passed to this specialist. Wraps freely and scrolls vertically when
+ * longer than the visible window so the reviewer can read the entire
+ * instruction without relying on the hover tooltip. */
 .nodeSubQuestion {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
   font-size: 9.5px;
-  font-style: italic;
   color: #4A5870;
-  line-height: 1.32;
+  line-height: 1.35;
   margin-top: 3px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-height: 42px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: pre-wrap;
   word-break: break-word;
+  /* Slim scrollbar so it doesn't fight the node's compact look. */
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E0 transparent;
 }
+.nodeSubQuestion::-webkit-scrollbar { width: 4px; }
+.nodeSubQuestion::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 2px; }
+.nodeSubQuestion::-webkit-scrollbar-track { background: transparent; }
 
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -685,7 +688,6 @@
   font-size: 10.5px;
   color: #8593AB;
   text-align: center;
-  font-style: italic;
   /* Fill the nodeStack so empty branches look intentionally sized. When
      the placeholder is swapped for real nodes, the parent's inline
      height (computed in the .tsx as HEADER + N*SLOT) stays predictable

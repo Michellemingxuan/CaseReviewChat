@@ -15,6 +15,11 @@ export function ChatPanel() {
   const activeTurnIdMap = useStore((s) => s.activeTurnId)
   const setActiveTurn = useStore((s) => s.setActiveTurn)
   const appendMessage = useStore((s) => s.appendMessage)
+  const patchTurn = useStore((s) => s.patchTurn)
+  // We read the latest turns directly (not via subscription) inside
+  // `handleStop` so the callback doesn't churn re-renders on every
+  // SSE event during streaming.
+  const turnsMap = useStore((s) => s.turns)
 
   const [showTyping, setShowTyping] = useState(false)
   // `prefill` is the reviewer text the InputBar should populate after a
@@ -78,16 +83,34 @@ export function ChatPanel() {
 
   const handleStop = useCallback(async () => {
     if (!activeCase) return
+    // Optimistic update: flip the streaming turn to 'error' state with
+    // an "interrupted" kind IMMEDIATELY so the orchestration-flow panel
+    // stops showing "streaming" the instant the user clicks Stop.
+    // Without this, the panel keeps the streaming badge until the
+    // backend's `error`+`turn_done` SSE events arrive — and on a
+    // safechain backend that can take a few seconds even when
+    // cancellation works, or arbitrarily long if it's stuck. The
+    // backend events still arrive shortly and refine the error message
+    // with the canonical "Interrupted — the answer was stopped…"
+    // copy; this just gives instant visual feedback.
+    const streamingTurn = (turnsMap[activeCase] ?? []).find(
+      (t) => t.status === 'streaming'
+    )
+    if (streamingTurn) {
+      patchTurn(activeCase, streamingTurn.turn_id, {
+        status: 'error',
+        errorKind: 'interrupted',
+        error: 'Stopping the answer…',
+        outcome: 'aborted',
+      })
+    }
+    setShowTyping(false)
     try {
       await postCancelTurn(activeCase)
-      // Clear the typing indicator immediately — the backend will emit
-      // `turn_done(outcome='aborted')` shortly, which would do the same,
-      // but reflecting the user's intent now feels more responsive.
-      setShowTyping(false)
     } catch (e) {
       console.error('Failed to cancel turn', e)
     }
-  }, [activeCase])
+  }, [activeCase, turnsMap, patchTurn])
 
   if (!activeCase) {
     return (

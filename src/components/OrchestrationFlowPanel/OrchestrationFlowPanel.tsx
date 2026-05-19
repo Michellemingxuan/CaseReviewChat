@@ -8,6 +8,38 @@ const EMPTY_TURNS: Turn[] = []
 type NodeStatus = 'idle' | 'running' | 'done' | 'error'
 
 /**
+ * Friendly display names for the agent identifiers the orchestrator
+ * dispatches under. Keep in sync with AgenticSys_v2/config/pillars/*.yaml
+ * specialist roster. Unknown ids fall through to a sentence-cased
+ * humanisation so a new specialist still renders reasonably without a
+ * frontend change required first.
+ */
+const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  report_agent: 'Report agent',
+  general_specialist: 'General specialist',
+  bureau: 'Bureau agent',
+  crossbu: 'Cross-BU agent',
+  modeling: 'Modeling agent',
+  spend_payments: 'Spend & Payment agent',
+  wcc: 'WCC agent',
+  customer_rel: 'Customer Relationship agent',
+  capacity_afford: 'Capacity & Affordability agent',
+  strategy: 'Strategy agent',
+}
+
+function agentDisplayName(tool: string): string {
+  const mapped = AGENT_DISPLAY_NAMES[tool]
+  if (mapped) return mapped
+  // Fallback: snake_case → "Snake Case agent"
+  const humanised = tool
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+  return humanised ? `${humanised} agent` : tool
+}
+
+/**
  * Orchestration Flow — L-shaped layout:
  *
  *   Question
@@ -213,12 +245,12 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   // to a shared maximum. Fork connector tips re-target the actual
   // vertical center of each branch using the computed percentages.
   //
-  // SLOT sizes the per-node footprint. Each branch node now renders:
-  //   icon-row (≈20px) + stacked role (≈14px) + sub-question (2 lines
-  //   ≈25px) + detail-foot (≈14px) + padding/borders (≈12px) ≈ 85px.
-  // SLOT bumped to 92 to keep nodes from getting clipped at the
-  // bottom of their branch (especially when sub-questions wrap).
-  const SLOT = 92
+  // SLOT sizes the per-node footprint. Branch nodes render:
+  //   inline name+role row (≈20px) + scrollable sub-question
+  //   (up to 42px window, scrolls beyond) + detail-foot (≈14px) +
+  //   padding/borders (≈12px) ≈ 88px. SLOT carries enough headroom
+  //   for nodes to sit cleanly without bottom-clipping.
+  const SLOT = 110
   const HEADER = 28
   const reportSlots = Math.max(1, reportCalls.length)
   const teamSlots = Math.max(1, teamCalls.length)
@@ -461,7 +493,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                       return (
                         <Node
                           key={tc.call_id}
-                          name="report_agent"
+                          name={agentDisplayName(tc.tool)}
                           role="curated reports"
                           iconClass={s.teal}
                           iconKind="report"
@@ -469,7 +501,6 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                           detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                           errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
                           subQuestion={tc.sub_question}
-                          roleStacked
                         />
                       )
                     })
@@ -500,14 +531,13 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                         return (
                           <Node
                             key={tc.call_id}
-                            name={tc.tool}
+                            name={agentDisplayName(tc.tool)}
                             role="domain specialist"
                             iconKind="specialist"
                             status={status}
                             detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                             errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
                             subQuestion={tc.sub_question}
-                            roleStacked
                           />
                         )
                       })}
@@ -522,14 +552,13 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                         return (
                           <Node
                             key={tc.call_id}
-                            name={tc.tool}
+                            name={agentDisplayName(tc.tool)}
                             role="cross-specialist review"
                             iconKind="general"
                             status={status}
                             detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
                             errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
                             subQuestion={tc.sub_question}
-                            roleStacked
                           />
                         )
                       })}
@@ -863,10 +892,11 @@ function Node({
    *  role labels the agent's domain). */
   roleStacked?: boolean
   /** Per-call sub-question the orchestrator dispatched to this specialist.
-   *  Renders as a clamped italic snippet below the role so the reviewer
-   *  can scan WHAT each specialist was asked at a glance. Omit on fixed
-   *  nodes (Chat Agent, Orchestrator, Synthesis) where there's no
-   *  per-call instruction. */
+   *  Renders as a wrapped block below the role; the block has a fixed
+   *  visible window and scrolls vertically when the sub-question is
+   *  longer than the window so the reviewer can read it in full without
+   *  relying on the hover tooltip. Omit on fixed nodes (Chat Agent,
+   *  Orchestrator, Synthesis) where there's no per-call instruction. */
   subQuestion?: string
 }) {
   const statusCls =
