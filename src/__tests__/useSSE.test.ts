@@ -182,6 +182,69 @@ describe('useSSE', () => {
     expect(turn.error).toContain('orchestrator hard fail')
   })
 
+  it('recoverable error with specialist name attaches to turn.errorsBySpecialist (not lost)', () => {
+    // Regression: before this fix, an `error` SSE event with
+    // `recoverable: true` returned early without storing anything —
+    // recoverable specialist failures (max_turns, timeout) were
+    // silently dropped on the floor. The reasoning-trace panel then
+    // showed the failed specialist as "no result" or "idle" instead
+    // of surfacing the actual failure reason. Now the per-specialist
+    // error is stored under `errorsBySpecialist` so the
+    // OrchestrationFlowPanel can render the precise reason on the
+    // matching agent node.
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(
+        JSON.stringify({
+          turn_id: 't1',
+          message: 'hit the 15-turn budget — partial findings were not returned.',
+          recoverable: true,
+          specialist: 'modeling',
+          error_type: 'max_turns_exceeded',
+        }),
+        'error',
+      )
+    })
+    const turn = useStore.getState().turns['C-001'][0]
+    // Turn-level status NOT flipped to 'error' — orchestrator can still
+    // synthesize from the other specialists.
+    expect(turn.status).toBe('streaming')
+    // BUT the per-specialist error IS stored.
+    expect(turn.errorsBySpecialist).toBeDefined()
+    expect(turn.errorsBySpecialist?.modeling).toContain('max_turns_exceeded')
+    expect(turn.errorsBySpecialist?.modeling).toContain('15-turn budget')
+  })
+
+  it('multiple recoverable errors for different specialists all attach', () => {
+    renderHook(() => useSSE('C-001'))
+    const es = MockEventSource.instances[0]
+    act(() => {
+      es.emit({ turn_id: 't1', question: 'q', started_at: 1 } as unknown as Message,
+              'turn_started')
+    })
+    act(() => {
+      es.emitRaw(JSON.stringify({
+        turn_id: 't1', message: 'timeout', recoverable: true,
+        specialist: 'modeling', error_type: 'timeout',
+      }), 'error')
+    })
+    act(() => {
+      es.emitRaw(JSON.stringify({
+        turn_id: 't1', message: 'transport error', recoverable: true,
+        specialist: 'bureau', error_type: 'TransportError',
+      }), 'error')
+    })
+    const turn = useStore.getState().turns['C-001'][0]
+    expect(Object.keys(turn.errorsBySpecialist ?? {})).toEqual(
+      expect.arrayContaining(['modeling', 'bureau']),
+    )
+  })
+
   it('error event carries `kind` (e.g. interrupted) onto the turn for the orchestration flow', () => {
     renderHook(() => useSSE('C-001'))
     const es = MockEventSource.instances[0]

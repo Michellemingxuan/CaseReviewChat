@@ -276,10 +276,19 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
       : turn.question_check ? 'running'
       : 'idle'
 
-  const reportStatus = branchStatus(reportCalls, turn.agent_runs, turn.status)
-  const teamStatus = branchStatus(teamCalls, turn.agent_runs, turn.status)
-  const reportFailed = reportCalls.some((c) => runStatus(runFor(c, turn.agent_runs), turn.status) === 'error')
-  const teamFailed = teamCalls.some((c) => runStatus(runFor(c, turn.agent_runs), turn.status) === 'error')
+  const reportStatus = branchStatus(reportCalls, turn.agent_runs, turn.status, turn.errorsBySpecialist)
+  const teamStatus = branchStatus(teamCalls, turn.agent_runs, turn.status, turn.errorsBySpecialist)
+  // Branch-level failure includes recoverable specialist errors so a
+  // partial-answer turn shows the failed branch and the matching node
+  // both, not just the orchestrator's eventually-rendered synthesis.
+  const reportFailed = reportCalls.some((c) =>
+    runStatus(runFor(c, turn.agent_runs), turn.status,
+              turn.errorsBySpecialist?.[c.tool]) === 'error',
+  )
+  const teamFailed = teamCalls.some((c) =>
+    runStatus(runFor(c, turn.agent_runs), turn.status,
+              turn.errorsBySpecialist?.[c.tool]) === 'error',
+  )
 
   const synthStatus: NodeStatus =
     turn.final ? 'done'
@@ -489,7 +498,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                   ) : (
                     reportCalls.map((tc) => {
                       const run = runFor(tc, turn.agent_runs)
-                      const status = runStatus(run, turn.status)
+                      const recErr = turn.errorsBySpecialist?.[tc.tool]
+                      const status = runStatus(run, turn.status, recErr)
                       return (
                         <Node
                           key={tc.call_id}
@@ -499,7 +509,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                           iconKind="report"
                           status={status}
                           detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
-                          errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
+                          errorReason={status === 'error' ? errorReason(run, turn.status, recErr) : undefined}
                           subQuestion={tc.sub_question}
                         />
                       )
@@ -527,7 +537,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                     <>
                       {specialistCalls.map((tc) => {
                         const run = runFor(tc, turn.agent_runs)
-                        const status = runStatus(run, turn.status)
+                        const recErr = turn.errorsBySpecialist?.[tc.tool]
+                        const status = runStatus(run, turn.status, recErr)
                         return (
                           <Node
                             key={tc.call_id}
@@ -536,7 +547,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                             iconKind="specialist"
                             status={status}
                             detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
-                            errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
+                            errorReason={status === 'error' ? errorReason(run, turn.status, recErr) : undefined}
                             subQuestion={tc.sub_question}
                           />
                         )
@@ -548,7 +559,8 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                           team branch. */}
                       {generalSpecialistCalls.map((tc) => {
                         const run = runFor(tc, turn.agent_runs)
-                        const status = runStatus(run, turn.status)
+                        const recErr = turn.errorsBySpecialist?.[tc.tool]
+                        const status = runStatus(run, turn.status, recErr)
                         return (
                           <Node
                             key={tc.call_id}
@@ -557,7 +569,7 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
                             iconKind="general"
                             status={status}
                             detail={run?.duration_ms ? `${(run.duration_ms / 1000).toFixed(2)}s` : ''}
-                            errorReason={status === 'error' ? errorReason(run, turn.status) : undefined}
+                            errorReason={status === 'error' ? errorReason(run, turn.status, recErr) : undefined}
                             subQuestion={tc.sub_question}
                           />
                         )
@@ -637,7 +649,19 @@ function isErrorPayload(p: unknown): boolean {
   return false
 }
 
-function runStatus(run: AgentRun | undefined, turnStatus: Turn['status']): NodeStatus {
+function runStatus(
+  run: AgentRun | undefined,
+  turnStatus: Turn['status'],
+  recoverableError?: string,
+): NodeStatus {
+  // Recoverable specialist failures (max_turns, timeout, transport, …)
+  // arrive as `error` SSE events with `recoverable: true` and a
+  // `specialist` name. `useSSE` stores them on the turn under
+  // `errorsBySpecialist`; the call site here looks up by tool name and
+  // passes it in. When present, the node is `error` regardless of
+  // whether a payload landed — partial answers from the orchestrator
+  // shouldn't mask the fact that this specialist failed.
+  if (recoverableError) return 'error'
   if (!run) return 'idle'
   if (run.payload) {
     if (isErrorPayload(run.payload)) return 'error'
@@ -647,7 +671,14 @@ function runStatus(run: AgentRun | undefined, turnStatus: Turn['status']): NodeS
   return 'running'
 }
 
-function errorReason(run: AgentRun | undefined, turnStatus: Turn['status']): string {
+function errorReason(
+  run: AgentRun | undefined,
+  turnStatus: Turn['status'],
+  recoverableError?: string,
+): string {
+  // Per-specialist recoverable error wins — it's the most precise
+  // diagnosis we have ("max_turns_exceeded: hit the 15-turn budget").
+  if (recoverableError) return recoverableError
   if (!run) return 'not started'
   if (run.payload) {
     const obj = run.payload as Record<string, unknown>
@@ -659,9 +690,16 @@ function errorReason(run: AgentRun | undefined, turnStatus: Turn['status']): str
   return 'no result'
 }
 
-function branchStatus(calls: ToolCall[], runs: AgentRun[], turnStatus: Turn['status']): NodeStatus {
+function branchStatus(
+  calls: ToolCall[],
+  runs: AgentRun[],
+  turnStatus: Turn['status'],
+  errorsBySpecialist?: Record<string, string>,
+): NodeStatus {
   if (calls.length === 0) return 'idle'
-  const statuses = calls.map((c) => runStatus(runFor(c, runs), turnStatus))
+  const statuses = calls.map((c) =>
+    runStatus(runFor(c, runs), turnStatus, errorsBySpecialist?.[c.tool]),
+  )
   if (statuses.every((st) => st === 'error')) return 'error'
   if (statuses.every((st) => st === 'done')) return 'done'
   if (statuses.some((st) => st === 'running')) return 'running'

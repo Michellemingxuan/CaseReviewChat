@@ -323,9 +323,34 @@ export function useSSE(caseId: string | null) {
         if (!p) return
         // Recoverable errors (e.g. one specialist failed but the orchestrator
         // is still synthesizing from the others) must NOT mark the entire
-        // turn as failed — the turn can still produce a final answer. Only
-        // hard failures (unrecoverable orchestrator/screen errors) terminate.
-        if (p.recoverable) return
+        // turn as failed — the turn can still produce a final answer. BUT
+        // they must NOT be silently dropped either: the reasoning trace
+        // needs to surface WHICH specialist failed and why, so the reviewer
+        // can spot a partial answer instead of trusting it as complete.
+        // We attach per-specialist recoverable errors to the turn under
+        // `errorsBySpecialist` so the OrchestrationFlowPanel can render
+        // them on the matching agent node.
+        if (p.recoverable) {
+          if (p.specialist) {
+            const turns = useStore.getState().turns[caseId] ?? []
+            const turn = turns.find((t) => t.turn_id === p.turn_id)
+            const existing = (turn?.errorsBySpecialist ?? {}) as Record<string, string>
+            // Preserve the first error per specialist (failures rarely
+            // repeat for the same specialist within one turn; if they do,
+            // the first is the load-bearing diagnosis).
+            if (!existing[p.specialist]) {
+              patchTurn(caseId, p.turn_id, {
+                errorsBySpecialist: {
+                  ...existing,
+                  [p.specialist]: p.error_type
+                    ? `${p.error_type}: ${p.message}`
+                    : p.message,
+                },
+              })
+            }
+          }
+          return
+        }
         patchTurn(caseId, p.turn_id, {
           status: 'error',
           error: p.message,

@@ -163,6 +163,15 @@ export type Turn = {
    *  LLM error. Today the only kind emitted is `'interrupted'`; other
    *  errors leave this undefined. */
   errorKind?: string
+  /** Per-specialist recoverable errors (max_turns_exceeded, timeout,
+   *  transport, etc.) that the orchestrator absorbed without aborting
+   *  the whole turn. Keyed by specialist name (e.g. "modeling" →
+   *  "max_turns_exceeded: hit the 15-turn budget…"). The
+   *  OrchestrationFlowPanel renders these next to the matching agent
+   *  node so the reviewer sees WHICH specialist failed and why,
+   *  instead of the prior behavior where recoverable errors were
+   *  silently dropped on the floor. */
+  errorsBySpecialist?: Record<string, string>
 }
 
 export type StoreState = {
