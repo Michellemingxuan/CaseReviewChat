@@ -216,8 +216,7 @@ export function Workspace() {
   return (
     <div ref={workspaceRef} className={s.workspace}>
       <Sidebar
-        consumerCases={caseList?.consumer ?? []}
-        commercialCases={caseList?.commercial ?? []}
+        cases={[...(caseList?.consumer ?? []), ...(caseList?.commercial ?? [])]}
         activeCase={activeCase}
         unread={unread}
         onSelect={setActiveCase}

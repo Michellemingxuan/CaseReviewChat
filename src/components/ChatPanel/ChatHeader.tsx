@@ -8,9 +8,7 @@ type Props = {
 }
 
 export function ChatHeader({ caseId, sseStatus }: Props) {
-  const caseList = useStore((s) => s.caseList)
   const forceReconnect = useStore((s) => s.forceReconnect)
-  const segment = caseList.consumer.includes(caseId) ? 'Consumer' : 'Commercial'
   const connected = sseStatus === 'connected'
 
   return (
@@ -18,7 +16,7 @@ export function ChatHeader({ caseId, sseStatus }: Props) {
       <div>
         <div className={styles.caseId}>{caseId}</div>
         <div className={styles.meta}>
-          {segment} · active session
+          active session
         </div>
       </div>
       {/* When `connected`, the badge is a passive status pill. When the
