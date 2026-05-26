@@ -16,11 +16,15 @@ export async function postMessage(caseId: string, text: string): Promise<void> {
   if (!res.ok) throw new Error(`postMessage failed: ${res.status}`)
 }
 
-export async function postRewind(caseId: string, messageId: string): Promise<void> {
+export async function postRewind(
+  caseId: string,
+  messageId: string,
+  removeTurnIds?: string[],
+): Promise<void> {
   const res = await fetch(`${BASE}/cases/${caseId}/rewind`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageId }),
+    body: JSON.stringify({ messageId, removeTurnIds }),
   })
   if (!res.ok) throw new Error(`postRewind failed: ${res.status}`)
 }

@@ -192,7 +192,7 @@ export type StoreState = {
   setCaseList: (list: CaseList) => void
   setActiveCase: (id: string) => void
   appendMessage: (caseId: string, msg: Message) => void
-  rewindThread: (caseId: string, messageId: string) => string
+  rewindThread: (caseId: string, messageId: string) => { text: string; removedTurnIds: string[] }
   setSseStatus: (status: SseStatus) => void
   /** Force the SSE hook to drop its current EventSource and reconnect.
    *  Used by the manual "Reconnect" affordance in the chat header. */

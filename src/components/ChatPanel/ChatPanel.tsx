@@ -64,11 +64,10 @@ export function ChatPanel() {
   const handleRewind = useCallback(async (messageId: string) => {
     if (!activeCase) return
     try {
-      await postRewind(activeCase, messageId)
-      // rewindThread now drops the owning reviewer message + everything
-      // after, and returns that reviewer's text so we can put it back in
-      // the input box for editing.
-      const revText = rewindThread(activeCase, messageId)
+      // Compute which turns will be removed BEFORE calling the server,
+      // so we can tell it exactly which trace rows to delete.
+      const { text: revText, removedTurnIds } = rewindThread(activeCase, messageId)
+      await postRewind(activeCase, messageId, removedTurnIds)
       setShowTyping(false)
       if (revText) setPrefill({ text: revText, key: Date.now() })
     } catch (e) {

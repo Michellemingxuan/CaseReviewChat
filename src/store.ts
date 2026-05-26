@@ -46,12 +46,13 @@ export const useStore = create<StoreState>()(
         // active turn pointer so the right-side panels (audit trace and
         // orchestration flow) don't display traces for messages that no
         // longer exist in the chat.
-        // Returns the reviewer's text so the caller can prefill the input
-        // box for editing — empty string if nothing to rewind to.
+        // Returns the reviewer's text + removed turn IDs so the caller
+        // can prefill the input box and tell the server which turns to drop.
         const state = get()
         const thread = state.threads[caseId] ?? []
+        const allTurns = state.turns[caseId] ?? []
         const clickedIdx = thread.findIndex((m) => m.id === messageId)
-        if (clickedIdx === -1) return ''
+        if (clickedIdx === -1) return { text: '', removedTurnIds: [] }
         // Walk backward to find the owning reviewer message.
         let revIdx = -1
         for (let i = clickedIdx; i >= 0; i--) {
@@ -64,7 +65,10 @@ export const useStore = create<StoreState>()(
         const survivingTurnIds = new Set(
           newThread.map((m) => m.turn_id).filter((t): t is string => !!t)
         )
-        const survivingTurns = (state.turns[caseId] ?? []).filter(
+        const removedTurnIds = allTurns
+          .filter((t) => !survivingTurnIds.has(t.turn_id))
+          .map((t) => t.turn_id)
+        const survivingTurns = allTurns.filter(
           (t) => survivingTurnIds.has(t.turn_id)
         )
         const prevActive = state.activeTurnId[caseId] ?? null
@@ -76,8 +80,8 @@ export const useStore = create<StoreState>()(
           turns:        { ...s.turns,        [caseId]: survivingTurns },
           activeTurnId: { ...s.activeTurnId, [caseId]: newActive },
         }))
-        if (revIdx === -1) return ''
-        return thread[revIdx].text
+        const text = revIdx === -1 ? '' : thread[revIdx].text
+        return { text, removedTurnIds }
       },
 
       setSseStatus: (status) => set({ sseStatus: status }),
