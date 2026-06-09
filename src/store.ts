@@ -30,12 +30,16 @@ export const useStore = create<StoreState>()(
         }),
 
       appendMessage: (caseId, msg: Message) =>
-        set((state) => ({
-          threads: {
-            ...state.threads,
-            [caseId]: [...(state.threads[caseId] ?? []), msg],
-          },
-        })),
+        set((state) => {
+          const thread = state.threads[caseId] ?? []
+          // Idempotent by id: the SSE replay-on-reconnect buffer may re-send a
+          // message this client already has (e.g. it dropped and reconnected
+          // mid-turn). Skip the duplicate instead of showing two bubbles.
+          if (msg.id && thread.some((m) => m.id === msg.id)) return {}
+          return {
+            threads: { ...state.threads, [caseId]: [...thread, msg] },
+          }
+        }),
 
       rewindThread: (caseId, messageId) => {
         // Rewind to BEFORE the turn that owns the clicked message:
