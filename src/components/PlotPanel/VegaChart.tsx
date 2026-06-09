@@ -38,8 +38,11 @@ export function VegaChart({ spec, alt }: {
 
     // Inject container-relative sizing so the chart fills the parent
     // <div> rather than the spec's intrinsic numeric dimensions.
-    const responsiveSpec: VisualizationSpec = {
+    const responsiveSpec = {
       ...(spec as VisualizationSpec),
+      // `'container'` is a valid vega-LITE sizing value (the chart fills its
+      // parent <div>); the vega `VisualizationSpec` type only models
+      // number | SignalRef, so cast at the end rather than per-field.
       width: 'container',
       height: 'container',
       // The chart provided by the server already styles its axes/legends
@@ -48,7 +51,7 @@ export function VegaChart({ spec, alt }: {
       // than only one. `fit-x` would keep height fixed → not what we
       // want when the user drags the panel vertically.
       autosize: { type: 'fit', contains: 'padding', resize: true },
-    }
+    } as unknown as VisualizationSpec
 
     embed(el, responsiveSpec, {
       actions: false,            // hide the vega menu — review-mode UI

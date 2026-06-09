@@ -107,7 +107,7 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
         ) : (
           <>
             <TeamConstructionBlock turn={turn} />
-            {turn.agent_runs.map((r) => (
+            {turn.agent_runs.map((r: AgentRun) => (
               <AgentBlock key={r.call_id} run={r} />
             ))}
             {/* Charts live in the dedicated PlotPanel below — kept out
@@ -470,25 +470,6 @@ const toggleStyle: React.CSSProperties = {
   textDecoration: 'underline dotted',
 }
 
-function ExpandableText({ text, cap }: { text: string; cap: number }) {
-  const [open, setOpen] = useState(false)
-  const t = String(text || '').trim()
-  if (!t) return null
-  const overflows = t.length > cap
-  if (!overflows) return <span className={s.v}>{t}</span>
-  return (
-    <span className={s.v}>
-      {open ? t : t.slice(0, cap).trimEnd() + ' …'}
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        style={toggleStyle}
-      >
-        {open ? 'show less' : 'show more'}
-      </button>
-    </span>
-  )
-}
 
 // Markdown variant — for fields where the LLM produces bullet lists / headings
 // (specialist `findings`, report agent `answer`). Renders through ReactMarkdown
