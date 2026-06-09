@@ -154,7 +154,7 @@ describe('useSSE', () => {
           message: 'one specialist failed but turn continues',
           recoverable: true,
         }),
-        'error',
+        'turn_error',
       )
     })
     const turn = useStore.getState().turns['C-001'][0]
@@ -174,7 +174,7 @@ describe('useSSE', () => {
     act(() => {
       es.emitRaw(
         JSON.stringify({ turn_id: 't1', message: 'orchestrator hard fail' }),
-        'error',
+        'turn_error',
       )
     })
     const turn = useStore.getState().turns['C-001'][0]
@@ -207,7 +207,7 @@ describe('useSSE', () => {
           specialist: 'modeling',
           error_type: 'max_turns_exceeded',
         }),
-        'error',
+        'turn_error',
       )
     })
     const turn = useStore.getState().turns['C-001'][0]
@@ -231,13 +231,13 @@ describe('useSSE', () => {
       es.emitRaw(JSON.stringify({
         turn_id: 't1', message: 'timeout', recoverable: true,
         specialist: 'modeling', error_type: 'timeout',
-      }), 'error')
+      }), 'turn_error')
     })
     act(() => {
       es.emitRaw(JSON.stringify({
         turn_id: 't1', message: 'transport error', recoverable: true,
         specialist: 'bureau', error_type: 'TransportError',
-      }), 'error')
+      }), 'turn_error')
     })
     const turn = useStore.getState().turns['C-001'][0]
     expect(Object.keys(turn.errorsBySpecialist ?? {})).toEqual(
@@ -260,7 +260,7 @@ describe('useSSE', () => {
           recoverable: false,
           kind: 'interrupted',
         }),
-        'error',
+        'turn_error',
       )
     })
     const turn = useStore.getState().turns['C-001'][0]
@@ -289,7 +289,7 @@ describe('useSSE', () => {
           recoverable: false,
           kind: 'interrupted',
         }),
-        'error',
+        'turn_error',
       )
     })
     act(() => {

@@ -350,7 +350,13 @@ export function useSSE(caseId: string | null) {
         })
       })
 
-      es.addEventListener('error', (e) => {
+      // Application-level turn error. MUST NOT be named 'error': in
+      // EventSource, 'error' is the RESERVED connection-error event, so a
+      // server-sent `event: error` also fires `es.onerror` above → a spurious
+      // reconnect. Combined with replay-on-reconnect that turns into a
+      // self-sustaining reconnect storm (the buffered error replays on every
+      // reconnect). The backend emits `turn_error`; keep these names in sync.
+      es.addEventListener('turn_error', (e) => {
         const ev = e as MessageEvent
         const p = parse<{
           turn_id: string
