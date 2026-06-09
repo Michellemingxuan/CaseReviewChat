@@ -649,7 +649,7 @@ function isErrorPayload(p: unknown): boolean {
   return false
 }
 
-function runStatus(
+export function runStatus(
   run: AgentRun | undefined,
   turnStatus: Turn['status'],
   recoverableError?: string,
@@ -667,7 +667,15 @@ function runStatus(
     if (isErrorPayload(run.payload)) return 'error'
     return 'done'
   }
-  if (turnStatus === 'done' || turnStatus === 'error') return 'error'
+  // Run started but never produced a payload, and the turn has ended.
+  // Do NOT paint it red "failed" purely because the TURN errored — this
+  // specialist has no error of its OWN (a per-specialist failure would have
+  // come through `recoverableError` above). It was interrupted/aborted when
+  // the orchestrator failed; show it neutral rather than falsely "failed".
+  // (Completed specialists keep their payload — the backend now replays
+  // agent_completed on failure branches — so only truly-incomplete ones
+  // land here.)
+  if (turnStatus === 'done' || turnStatus === 'error') return 'idle'
   return 'running'
 }
 
