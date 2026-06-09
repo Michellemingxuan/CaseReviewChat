@@ -74,7 +74,7 @@ function agentDisplayName(tool: string): string {
  * `.flow` so we re-measure when the unscaled flow's intrinsic size
  * changes, not just when the canvas resizes around it.
  */
-function useFlowScale() {
+function useFlowScale(refitKey?: unknown) {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const glassRef = useRef<HTMLDivElement | null>(null)
   const frameRef = useRef<HTMLDivElement | null>(null)
@@ -150,7 +150,15 @@ function useFlowScale() {
       cancelAnimationFrame(raf2)
       clearTimeout(settleTimer)
     }
-  }, [])
+    // Re-run (re-observe + re-measure) whenever `refitKey` changes — the
+    // caller passes the displayed turn's id+status, so we re-fit when a new
+    // turn starts AND when it COMPLETES. The on-mount measurement can land
+    // before the layout settles (parent height unresolved), and the
+    // ResizeObserver won't re-fire if the glass size doesn't change — so a
+    // first turn could render mis-scaled/clipped until a tab-switch or hard
+    // refresh remounted us. Re-fitting on completion fixes that in place,
+    // no page reload needed.
+  }, [refitKey])
 
   return { canvasRef, glassRef, frameRef }
 }
@@ -158,7 +166,6 @@ function useFlowScale() {
 export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   const turns = useStore((st) => (caseId ? st.turns[caseId] : undefined)) ?? EMPTY_TURNS
   const activeTurnId = useStore((st) => (caseId ? st.activeTurnId[caseId] : null))
-  const { canvasRef, glassRef, frameRef } = useFlowScale()
   // Selection priority — per
   // AgenticSys_v2/.claude/memory/feedback_orchestration_flow_ux.md:
   //   1. User-selected turn (activeTurnId) — wins even during streaming
@@ -182,6 +189,14 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
     streamingTurn ??
     turns[turns.length - 1] ??
     null
+
+  // Re-fit the flow when the displayed turn CHANGES and when it COMPLETES
+  // (status flips streaming→done). Layout is fully settled at those moments,
+  // so the auto-fit measures correct dimensions — fixing the first-turn
+  // "clipped/off-center until hard-refresh" without a page reload.
+  const { canvasRef, glassRef, frameRef } = useFlowScale(
+    turn ? `${turn.turn_id}:${turn.status}` : 'none',
+  )
 
   if (!turn) {
     return (
