@@ -125,9 +125,30 @@ function useFlowScale() {
     ro.observe(glass)
     ro.observe(frame)
     recompute()
+
+    // The first measurement on initial mount can be wrong: the parent flex
+    // height isn't resolved yet, so the glass reports a stale size and we
+    // compute a bad --flow-scale. Because the glass size doesn't CHANGE
+    // afterward, the ResizeObserver never re-fires — so that wrong scale
+    // sticks until a tab-switch remounts us (which is why switching away and
+    // back "fixes" it). Re-measure once layout (double-rAF), fonts, and a
+    // short settle window have passed. recompute() is cheap + idempotent.
+    let cancelled = false
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(recompute))
+    const settleTimer = setTimeout(recompute, 200)
+    const fontsReady = (document as Document & {
+      fonts?: { ready?: Promise<unknown> }
+    }).fonts?.ready
+    if (fontsReady) {
+      fontsReady.then(() => { if (!cancelled) recompute() })
+    }
+
     return () => {
+      cancelled = true
       ro.disconnect()
       if (raf) cancelAnimationFrame(raf)
+      cancelAnimationFrame(raf2)
+      clearTimeout(settleTimer)
     }
   }, [])
 
