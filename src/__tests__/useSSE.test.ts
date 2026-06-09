@@ -674,3 +674,61 @@ describe('useSSE', () => {
     })
   })
 })
+
+describe('useSSE heartbeat watchdog', () => {
+  it('force-reconnects when the stream goes stale (no events past the heartbeat window)', () => {
+    vi.useFakeTimers()
+    try {
+      renderHook(() => useSSE('C-001'))
+      const es0 = MockEventSource.instances[0]
+      act(() => { es0.open() })
+      expect(MockEventSource.instances).toHaveLength(1)
+      // No events AND no pings arrive — a silent half-open death (the mock
+      // never fires onerror). Advance past the staleness window.
+      act(() => { vi.advanceTimersByTime(20_000) })
+      // The watchdog must rebuild the connection even though readyState
+      // would report OPEN and onerror never fired.
+      expect(MockEventSource.instances.length).toBeGreaterThanOrEqual(2)
+      expect(es0.close).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does NOT reconnect while ping events keep arriving', () => {
+    vi.useFakeTimers()
+    try {
+      renderHook(() => useSSE('C-001'))
+      const es0 = MockEventSource.instances[0]
+      act(() => { es0.open() })
+      // A ping every 5s keeps the stream considered alive across 20s.
+      for (let i = 0; i < 4; i++) {
+        act(() => {
+          vi.advanceTimersByTime(5_000)
+          es0.emitRaw('{}', 'ping')
+        })
+      }
+      expect(MockEventSource.instances).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('any real event resets the staleness timer (no premature reconnect)', () => {
+    vi.useFakeTimers()
+    try {
+      renderHook(() => useSSE('C-001'))
+      const es0 = MockEventSource.instances[0]
+      act(() => { es0.open() })
+      for (let i = 0; i < 4; i++) {
+        act(() => {
+          vi.advanceTimersByTime(5_000)
+          es0.emit({ id: `m${i}`, role: 'agent', text: 'x', timestamp: i } as Message)
+        })
+      }
+      expect(MockEventSource.instances).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

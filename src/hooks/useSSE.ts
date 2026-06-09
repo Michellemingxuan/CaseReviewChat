@@ -11,6 +11,18 @@ import type { ChartInfo, Message, Turn } from '../types'
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 
+// Heartbeat watchdog. The server emits a `ping` event every ~5s
+// (AgenticSys_v2/server.py PING_INTERVAL_S). If we receive NOTHING — not a
+// real event, not even a ping — for this long, the connection is silently
+// half-open (readyState still OPEN, onerror never fired) and must be rebuilt.
+// `onerror` / visibility / online don't catch this case, and `reconnectNow`
+// deliberately bails when readyState===1, so without the watchdog a dead
+// stream strands every later turn until a hard refresh (rewind can't fix it).
+// 15s = 3 missed pings: long enough to never false-fire during a legitimately
+// quiet specialist call (pings still flow every 5s), short enough to self-heal.
+const HEARTBEAT_STALE_MS = 15_000
+const WATCHDOG_CHECK_MS = 5_000
+
 /**
  * Open one SSE connection per active case. Translates the typed event stream
  * from `AgenticSys_v2/server.py` into store mutations.
@@ -52,6 +64,10 @@ export function useSSE(caseId: string | null) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeRef = useRef(true)
   const attemptRef = useRef(0)
+  // Timestamp (ms) of the last SSE activity — any event OR a server ping.
+  // The watchdog compares against this to detect a silently-dead stream.
+  const lastEventAtRef = useRef(0)
+  const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!caseId) return
@@ -80,14 +96,29 @@ export function useSSE(caseId: string | null) {
       connect()
     }
 
+    function forceReconnect() {
+      // Unconditional rebuild used by the staleness watchdog: unlike
+      // `reconnectNow`, this does NOT bail on readyState===1 — the whole
+      // point is that a half-open socket lies about being OPEN. Reset the
+      // staleness clock so the freshly-built connection gets a full window.
+      clearPendingTimer()
+      esRef.current?.close()
+      esRef.current = null
+      attemptRef.current = 0
+      lastEventAtRef.current = Date.now()
+      connect()
+    }
+
     function connect() {
       if (!activeRef.current || !caseId) return
+      lastEventAtRef.current = Date.now()
       const es = openSSE(caseId)
       esRef.current = es
       es.onopen = () => {
         // Successful open — reset the backoff clock so the next blip
         // restarts from RECONNECT_BASE_MS, not from whatever-2^N-was.
         attemptRef.current = 0
+        lastEventAtRef.current = Date.now()
         setSseStatus('connected')
       }
       es.onerror = () => {
@@ -105,8 +136,17 @@ export function useSSE(caseId: string | null) {
       }
 
       const parse = <T,>(raw: string): T | null => {
+        // Any inbound event counts as liveness for the staleness watchdog.
+        lastEventAtRef.current = Date.now()
         try { return JSON.parse(raw) as T } catch { return null }
       }
+
+      // Server keepalive. Carries no payload — its only job is to reset the
+      // staleness clock so the watchdog doesn't reconnect during a quiet
+      // (but healthy) stretch like a long-running specialist call.
+      es.addEventListener('ping', () => {
+        lastEventAtRef.current = Date.now()
+      })
 
       // Legacy: { id, role, text, timestamp }
       es.addEventListener('message', (e) => {
@@ -385,9 +425,30 @@ export function useSSE(caseId: string | null) {
 
     connect()
 
+    // Staleness watchdog: a single interval for the effect's lifetime. It
+    // checks the most recent connection (esRef) and rebuilds it if no event
+    // or ping has arrived within HEARTBEAT_STALE_MS — catching silent
+    // half-open deaths that onerror/visibility/online miss.
+    lastEventAtRef.current = Date.now()
+    watchdogRef.current = setInterval(() => {
+      if (!activeRef.current) return
+      // Only police a connection we believe is healthy and open: attemptRef
+      // is 0 only after a successful onopen (it increments during onerror
+      // backoff). While backoff is recovering, leave it alone — otherwise the
+      // watchdog and the backoff loop fight and spawn duplicate connections.
+      if (!esRef.current || attemptRef.current !== 0) return
+      if (Date.now() - lastEventAtRef.current > HEARTBEAT_STALE_MS) {
+        forceReconnect()
+      }
+    }, WATCHDOG_CHECK_MS)
+
     return () => {
       activeRef.current = false
       clearPendingTimer()
+      if (watchdogRef.current) {
+        clearInterval(watchdogRef.current)
+        watchdogRef.current = null
+      }
       esRef.current?.close()
       esRef.current = null
       if (typeof document !== 'undefined') {
