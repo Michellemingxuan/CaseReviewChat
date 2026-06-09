@@ -26,6 +26,16 @@ beforeEach(() => {
 })
 
 describe('store', () => {
+  it('appendMessage dedupes by id (replay-on-reconnect safe)', () => {
+    useStore.getState().appendMessage('C-1', msg('m1', 'agent'))
+    // Same id arrives again (SSE replay after a reconnect) — must not double.
+    useStore.getState().appendMessage('C-1', msg('m1', 'agent'))
+    expect(useStore.getState().threads['C-1']).toHaveLength(1)
+    // A different id still appends.
+    useStore.getState().appendMessage('C-1', msg('m2', 'agent'))
+    expect(useStore.getState().threads['C-1']).toHaveLength(2)
+  })
+
   it('setActiveCase updates activeCase and clears unread for that case', () => {
     useStore.setState({ unread: new Set(['C-001']) })
     useStore.getState().setActiveCase('C-001')
