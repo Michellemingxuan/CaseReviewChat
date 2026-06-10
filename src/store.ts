@@ -220,19 +220,17 @@ export const useStore = create<StoreState>()(
           if (!str) return null
           const parsed = JSON.parse(str)
           parsed.state.unread = new Set(parsed.state.unread ?? [])
-          // Any turn that was mid-stream when the page closed is now orphaned;
-          // mark it as error so the UI doesn't display "streaming…" forever.
-          if (parsed.state.turns) {
-            for (const caseId of Object.keys(parsed.state.turns)) {
-              const list = parsed.state.turns[caseId]
-              if (!Array.isArray(list)) continue
-              parsed.state.turns[caseId] = list.map((t: { status?: string }) =>
-                t.status === 'streaming'
-                  ? { ...t, status: 'error', error: 'interrupted (session closed)' }
-                  : t
-              )
-            }
-          }
+          // Do NOT mark a mid-stream turn as interrupted on reload. The server
+          // turn keeps running across an SSE disconnect — ONLY Stop/Rewind
+          // cancels it (server.py sets cancel_in_flight) — and SSE
+          // replay-on-reconnect resumes it when the page reconnects. So an
+          // accidental hard-refresh is a no-op: leave streaming turns as-is and
+          // let the replayed + live events bring them to 'done' (or a real
+          // server error). Falsely flipping them to "interrupted (session
+          // closed)" here would interrupt work the user didn't mean to stop.
+          // (Edge: if the server itself restarted while away, the turn is gone
+          // and will show 'streaming' until the next question — acceptable and
+          // rare, and far better than interrupting every accidental refresh.)
           return parsed
         },
         setItem: (name, value) => {
