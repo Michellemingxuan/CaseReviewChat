@@ -50,6 +50,14 @@ export function ChatPanel() {
     }
   }, [lastMsg])
 
+  // Show the "agent thinking…" indicator while a turn is in flight and the
+  // agent hasn't replied yet. `hasStreamingTurn` is store-backed, so the
+  // indicator survives a hard-refresh (the local `showTyping` flag resets on
+  // reload); `showTyping` covers the instant before `turn_started` lands. The
+  // `lastMsg` guard hides it the moment the agent's answer appears, so it
+  // never dangles below a finished answer in the window before `turn_done`.
+  const agentThinking = (showTyping || hasStreamingTurn) && lastMsg?.role !== 'agent'
+
   const handleSend = useCallback(async (text: string) => {
     if (!activeCase) return
     // Optimistically append the reviewer's question so it appears immediately
@@ -134,7 +142,7 @@ export function ChatPanel() {
       <ChatHeader caseId={activeCase} sseStatus={sseStatus} />
       <MessageList
         messages={messages}
-        showTyping={showTyping}
+        showTyping={agentThinking}
         onRewind={handleRewind}
         onSelectTurn={handleSelectTurn}
         activeTurnId={activeTurnId}

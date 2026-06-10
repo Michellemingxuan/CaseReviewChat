@@ -113,6 +113,13 @@ export const useStore = create<StoreState>()(
           // question clobbers the user's selection mid-streaming and the
           // right-side trace panels snap back to the new turn.
           const existing = state.turns[caseId] ?? []
+          // Idempotent by turn_id: the backend replays buffered events
+          // (including `turn_started`) on every SSE reconnect, and a
+          // hard-refresh triggers a reconnect. Without this guard each replay
+          // re-appended the same turn, inflating the "Turn X of N" navigator
+          // (e.g. 2 real turns shown as 8). Skip the duplicate and leave the
+          // existing turn + activeTurnId untouched. (Mirrors appendMessage.)
+          if (existing.some((t) => t.turn_id === turn.turn_id)) return {}
           const prevActive = state.activeTurnId[caseId] ?? null
           const lastTurnId = existing.length > 0 ? existing[existing.length - 1].turn_id : null
           const userOnHistorical =
@@ -220,6 +227,26 @@ export const useStore = create<StoreState>()(
           if (!str) return null
           const parsed = JSON.parse(str)
           parsed.state.unread = new Set(parsed.state.unread ?? [])
+          // Self-heal duplicate turns left behind by a prior build that
+          // appended `turn_started` non-idempotently on replay/reload (which
+          // inflated the "Turn X of N" navigator). Keep the first occurrence
+          // of each turn_id per case. Replayed duplicates carried identical
+          // content — every patchTurn/upsert maps ALL entries matching a
+          // turn_id — so first-wins loses nothing. New writes are deduped at
+          // the source in `startTurn`; this just cleans already-persisted state.
+          const turns = parsed.state.turns
+          if (turns && typeof turns === 'object') {
+            for (const cid of Object.keys(turns)) {
+              const list = turns[cid]
+              if (!Array.isArray(list)) continue
+              const seen = new Set<string>()
+              turns[cid] = list.filter((t: { turn_id?: string }) => {
+                if (!t || t.turn_id == null || seen.has(t.turn_id)) return false
+                seen.add(t.turn_id)
+                return true
+              })
+            }
+          }
           // Do NOT mark a mid-stream turn as interrupted on reload. The server
           // turn keeps running across an SSE disconnect — ONLY Stop/Rewind
           // cancels it (server.py sets cancel_in_flight) — and SSE

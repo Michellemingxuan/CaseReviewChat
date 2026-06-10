@@ -218,4 +218,20 @@ describe('store', () => {
     useStore.getState().startTurn('C-001', baseTurn('t2'))
     expect(useStore.getState().activeTurnId['C-001']).toBe('t2')
   })
+
+  it('startTurn dedupes by turn_id (replay-on-reconnect safe)', () => {
+    // The backend replays buffered events (including `turn_started`) on
+    // every SSE reconnect — and a hard-refresh triggers a reconnect. Without
+    // dedup, each replay re-appended the same turn, inflating the
+    // "Turn X of N" navigator (e.g. 2 real turns showing as 8).
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().startTurn('C-001', baseTurn('t1')) // replayed turn_started
+    expect(useStore.getState().turns['C-001']).toHaveLength(1)
+    // A genuinely new turn still appends.
+    useStore.getState().startTurn('C-001', baseTurn('t2'))
+    expect(useStore.getState().turns['C-001']).toHaveLength(2)
+    // The duplicate must not have disturbed the existing turn's identity.
+    expect(useStore.getState().turns['C-001'].map((t) => t.turn_id))
+      .toEqual(['t1', 't2'])
+  })
 })
