@@ -21,6 +21,16 @@ export function ChatPanel() {
   // SSE event during streaming.
   const turnsMap = useStore((s) => s.turns)
 
+  // Whether a turn is in flight for this case. Boolean selector → re-renders
+  // only when streaming status flips (start/end), not on every SSE event.
+  // Drives the "agent thinking…" indicator FROM THE STORE so it survives a
+  // hard-refresh: replay-on-reconnect restores the streaming turn, and the
+  // indicator comes back with it (the local `showTyping` flag resets on
+  // reload). Combined below as `showTyping || hasStreamingTurn`.
+  const hasStreamingTurn = useStore((s) =>
+    activeCase ? (s.turns[activeCase] ?? []).some((t) => t.status === 'streaming') : false
+  )
+
   const [showTyping, setShowTyping] = useState(false)
   // `prefill` is the reviewer text the InputBar should populate after a
   // rewind. Bumping `key` triggers the InputBar's effect even when the same
@@ -132,7 +142,7 @@ export function ChatPanel() {
       <InputBar
         onSend={handleSend}
         prefill={prefill}
-        streaming={showTyping}
+        streaming={showTyping || hasStreamingTurn}
         onStop={handleStop}
       />
     </div>
