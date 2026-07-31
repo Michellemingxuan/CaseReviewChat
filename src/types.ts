@@ -2,7 +2,7 @@ export type Message = {
   id: string
   role: 'agent' | 'reviewer'
   text: string
-  timestamp: number
+  timestamp?: number
   turn_id?: string
 }
 
@@ -11,6 +11,10 @@ export type SseStatus = 'connected' | 'disconnected'
 export type CaseList = {
   consumer: string[]
   commercial: string[]
+}
+
+export type HistoryResponse = {
+  messages: Message[]
 }
 
 // ── Trace types — match server.py SSE event payloads ──────────────────────
@@ -57,6 +61,18 @@ export type SpecialistPayload = {
   implications: string[]
   data_gaps: string[]
   raw_data?: Record<string, unknown>
+  // Server-derived provenance, added as payload FIELDS by
+  // AgenticSys_v2/agent_factories/agent_tools/agent_tool.py:_annotate_payload —
+  // not part of the SpecialistOutput schema the model fills in.
+  //
+  // `scope` is `table: window` pairs for the whole run, e.g.
+  // "spends: all dates; model_scores_transaction: 2025-05-01..2025-05-31".
+  // It is what lets a reviewer catch a correct number measured over the wrong
+  // set, and "all dates" is the load-bearing half: an unconstrained table
+  // answering a windowed question is the error it exists to expose.
+  scope?: string
+  // Per-call detail behind the same numbers (table, column, op, every filter).
+  measured_over?: string[]
 }
 
 // Matches AgenticSys_v2/models/types.py:ReviewReport
@@ -199,6 +215,12 @@ export type StoreState = {
   forceReconnect: () => void
   markUnread: (caseId: string) => void
   clearHistory: () => void
+  /** Clears only `threads[caseId]`, `turns[caseId]`, `activeTurnId[caseId]`,
+   *  and removes `caseId` from `unread` — leaves other cases untouched. */
+  clearCaseHistory: (caseId: string) => void
+  /** Replaces `threads[caseId]` wholesale with server-authoritative history
+   *  (e.g. on session resume), rather than appending. */
+  setCaseHistory: (caseId: string, messages: Message[]) => void
   // actions — turns / trace
   startTurn: (caseId: string, turn: Turn) => void
   patchTurn: (caseId: string, turnId: string, patch: Partial<Turn>) => void

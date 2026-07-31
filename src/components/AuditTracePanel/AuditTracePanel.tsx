@@ -319,6 +319,28 @@ function SpecialistOutputBody({ payload }: { payload: SpecialistPayload }) {
           />
         </>
       )}
+      {/* Scope last, as a footnote: `table: window` pairs for the run. This is
+          the reviewer's own check — shown "top merchant = 10.0%" they cannot
+          tell whether the base was one month or all history, and "spends: all
+          dates" next to a question about 2025 is what makes that visible.
+          Server-derived from the arguments the specialist actually passed, so
+          it costs no tokens and cannot be forgotten. */}
+      {payload.scope && (
+        <p className={s.bullet}>
+          <span className={s.k}>Scope: </span>
+          <code>{payload.scope}</code>
+        </p>
+      )}
+      {payload.measured_over && payload.measured_over.length > 0 && (
+        <>
+          <p className={s.bullet}><span className={s.k}>Measured over:</span></p>
+          <ExpandableList
+            items={payload.measured_over}
+            cap={3}
+            render={(e, i) => <ExpandableLine key={i} text={e} cap={220} />}
+          />
+        </>
+      )}
     </>
   )
 }
