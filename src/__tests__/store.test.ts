@@ -235,3 +235,68 @@ describe('store', () => {
       .toEqual(['t1', 't2'])
   })
 })
+
+describe('removePendingChart (chart_cancelled)', () => {
+  // `chart_pending` fires per specialist DURING a turn; the real `chart`
+  // events are emitted at END of turn, after the server dedups identical
+  // figures across specialists. A deduped-away chart has already had its
+  // placeholder announced and no `chart` event is coming, so it would spin
+  // forever beside the real one — which is what "two specialists drew the
+  // same plot" looks like on screen.
+  const seed = () => {
+    useStore.setState({ turns: {}, activeTurnId: {} })
+    useStore.getState().startTurn('C-1', {
+      turn_id: 'T-1', question: 'q', started_at: 0,
+      agent_runs: [], status: 'streaming',
+    })
+    useStore.getState().upsertPendingChart('C-1', 'T-1', {
+      specialist: 'bureau', topic: 'tsr_trend', kind: 'trend',
+    })
+    useStore.getState().upsertPendingChart('C-1', 'T-1', {
+      specialist: 'modeling', topic: 'tsr_trend', kind: 'trend',
+    })
+  }
+  const pending = () => useStore.getState().turns['C-1'][0].pendingCharts ?? []
+
+  it('drops only the cancelled (specialist, topic) placeholder', () => {
+    seed()
+    expect(pending()).toHaveLength(2)
+
+    useStore.getState().removePendingChart('C-1', 'T-1', {
+      specialist: 'modeling', topic: 'tsr_trend',
+    })
+
+    expect(pending()).toEqual([
+      { specialist: 'bureau', topic: 'tsr_trend', kind: 'trend' },
+    ])
+  })
+
+  it('is a no-op for an unknown key or turn', () => {
+    seed()
+    useStore.getState().removePendingChart('C-1', 'T-1', {
+      specialist: 'nobody', topic: 'tsr_trend',
+    })
+    useStore.getState().removePendingChart('C-1', 'T-missing', {
+      specialist: 'modeling', topic: 'tsr_trend',
+    })
+    expect(pending()).toHaveLength(2)
+  })
+
+  it('leaves already-rendered charts alone', () => {
+    seed()
+    useStore.getState().upsertChart('C-1', 'T-1', {
+      specialist: 'bureau', topic: 'tsr_trend', url: '/x.png',
+    } as never)
+    // bureau's placeholder cleared by the real chart; modeling's remains
+    expect(pending()).toEqual([
+      { specialist: 'modeling', topic: 'tsr_trend', kind: 'trend' },
+    ])
+
+    useStore.getState().removePendingChart('C-1', 'T-1', {
+      specialist: 'modeling', topic: 'tsr_trend',
+    })
+
+    expect(pending()).toHaveLength(0)
+    expect(useStore.getState().turns['C-1'][0].charts).toHaveLength(1)
+  })
+})

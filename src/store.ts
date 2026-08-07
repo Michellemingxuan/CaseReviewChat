@@ -203,6 +203,20 @@ export const useStore = create<StoreState>()(
           return { turns: { ...state.turns, [caseId]: next } }
         }),
 
+      removePendingChart: (caseId, turnId, key) =>
+        set((state) => {
+          const list = state.turns[caseId] ?? []
+          const next = list.map((t) => {
+            if (t.turn_id !== turnId) return t
+            const pending = (t.pendingCharts ?? []).filter(
+              (p) => !(p.specialist === key.specialist && p.topic === key.topic)
+            )
+            if (pending.length === (t.pendingCharts ?? []).length) return t
+            return { ...t, pendingCharts: pending }
+          })
+          return { turns: { ...state.turns, [caseId]: next } }
+        }),
+
       setActiveTurn: (caseId, turnId) =>
         set((state) => ({
           activeTurnId: { ...state.activeTurnId, [caseId]: turnId },

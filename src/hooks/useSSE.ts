@@ -52,6 +52,7 @@ export function useSSE(caseId: string | null) {
   const upsertAgentRun = useStore((s) => s.upsertAgentRun)
   const upsertChart = useStore((s) => s.upsertChart)
   const upsertPendingChart = useStore((s) => s.upsertPendingChart)
+  const removePendingChart = useStore((s) => s.removePendingChart)
   const setActiveTurn = useStore((s) => s.setActiveTurn)
   // Subscribing to `connectionEpoch` lets a manual "Reconnect" button
   // (chat header) force the EventSource to tear down and rebuild —
@@ -276,6 +277,28 @@ export function useSSE(caseId: string | null) {
         })
       })
 
+      // `chart_cancelled` retracts a placeholder that will NEVER be filled.
+      // `chart_pending` fires per specialist DURING the turn, but the real
+      // `chart` events land at END of turn, after the server dedups identical
+      // figures across specialists. Anything dedup drops has already had its
+      // placeholder announced and no `chart` event is coming — without this the
+      // card spins forever next to the real one, which reads to the reviewer as
+      // "two specialists drew the same plot". Only the server knows what it
+      // chose not to emit, so it tells us.
+      es.addEventListener('chart_cancelled', (e) => {
+        const p = parse<{
+          turn_id: string
+          specialist: string
+          topic: string
+          reason?: string
+        }>(e.data)
+        if (!p) return
+        removePendingChart(caseId, p.turn_id, {
+          specialist: p.specialist,
+          topic: p.topic,
+        })
+      })
+
       // Chart events fire from the server's distiller-output pipeline (and
       // from the explicit `make_chart` tool). Each event carries one
       // chart's URL + the underlying claim/source so the reasoning-trace
@@ -469,5 +492,5 @@ export function useSSE(caseId: string | null) {
     // be in the deps so React re-runs the effect if Zustand's reference
     // ever changes (currently stable, but explicit deps protect against
     // future refactors).
-  }, [caseId, appendMessage, setSseStatus, startTurn, patchTurn, upsertAgentRun, upsertChart, upsertPendingChart, setActiveTurn, connectionEpoch])
+  }, [caseId, appendMessage, setSseStatus, startTurn, patchTurn, upsertAgentRun, upsertChart, upsertPendingChart, removePendingChart, setActiveTurn, connectionEpoch])
 }

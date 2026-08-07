@@ -232,5 +232,19 @@ export type StoreState = {
   /** Add a pending-chart placeholder. Dedup-by-(specialist, topic); a
    *  duplicate `chart_pending` event for the same key is a no-op. */
   upsertPendingChart: (caseId: string, turnId: string, pending: PendingChart) => void
+  /** Drop a placeholder that will NEVER be filled (`chart_cancelled`).
+   *
+   *  `chart_pending` fires per specialist DURING the turn, but the real
+   *  `chart` events are emitted at END of turn, after the server dedups
+   *  identical figures across specialists. Anything dedup drops has already
+   *  had its placeholder announced, and no `chart` event is ever coming — so
+   *  without this the card spins forever beside the real one, which reads as
+   *  "two specialists drew the same plot". The client cannot detect it alone;
+   *  only the server knows what it chose not to emit. */
+  removePendingChart: (
+    caseId: string,
+    turnId: string,
+    key: { specialist: string; topic: string },
+  ) => void
   setActiveTurn: (caseId: string, turnId: string | null) => void
 }
