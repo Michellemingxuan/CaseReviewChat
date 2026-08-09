@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from '../store'
 import type { ChartInfo, Message, Turn } from '../types'
 
-const msg = (id: string, role: 'agent' | 'reviewer'): Message => ({
+const msg = (id: string, role: 'agent' | 'reviewer', turn_id?: string): Message => ({
   id,
   role,
   text: `text-${id}`,
   timestamp: Date.now(),
+  ...(turn_id ? { turn_id } : {}),
 })
 
 beforeEach(() => {
@@ -52,14 +53,16 @@ describe('store', () => {
     // Thread shape: r1 → a1 → r2 → a2.  Rewinding from a2 should walk back
     // to r2 (the reviewer that owns this turn) and drop r2 + a2 from the
     // thread, leaving [r1, a1]. The reviewer's text is returned so the
-    // caller can prefill the input box.
+    // caller can prefill the input box, alongside the trace turns that were
+    // dropped (none here — these messages carry no turn_id).
     useStore.getState().appendMessage('C-001', msg('r1', 'reviewer'))
     useStore.getState().appendMessage('C-001', msg('a1', 'agent'))
     useStore.getState().appendMessage('C-001', msg('r2', 'reviewer'))
     useStore.getState().appendMessage('C-001', msg('a2', 'agent'))
 
-    const text = useStore.getState().rewindThread('C-001', 'a2')
+    const { text, removedTurnIds } = useStore.getState().rewindThread('C-001', 'a2')
     expect(text).toBe('text-r2')
+    expect(removedTurnIds).toEqual([])
     const thread = useStore.getState().threads['C-001']
     expect(thread).toHaveLength(2)
     expect(thread.map((m) => m.id)).toEqual(['r1', 'a1'])
@@ -71,10 +74,33 @@ describe('store', () => {
     useStore.getState().appendMessage('C-001', msg('a1', 'agent'))
     useStore.getState().appendMessage('C-001', msg('r2', 'reviewer'))
 
-    const text = useStore.getState().rewindThread('C-001', 'r2')
+    const { text, removedTurnIds } = useStore.getState().rewindThread('C-001', 'r2')
     expect(text).toBe('text-r2')
+    expect(removedTurnIds).toEqual([])
     expect(useStore.getState().threads['C-001'].map((m) => m.id))
       .toEqual(['r1', 'a1'])
+  })
+
+  it('rewindThread drops the orphaned trace turns and reports their ids', () => {
+    // Same r1 → a1 → r2 → a2 shape, but the messages carry turn_ids and the
+    // matching trace turns exist. Rewinding from a2 drops the t2 messages, so
+    // turn t2 has nothing left to describe: it must be removed from `turns`
+    // (the audit-trace / flow panels would otherwise render a turn with no
+    // chat behind it) and returned so ChatPanel can tell the server to drop it.
+    useStore.getState().startTurn('C-001', baseTurn('t1'))
+    useStore.getState().startTurn('C-001', baseTurn('t2'))
+    useStore.getState().appendMessage('C-001', msg('r1', 'reviewer', 't1'))
+    useStore.getState().appendMessage('C-001', msg('a1', 'agent', 't1'))
+    useStore.getState().appendMessage('C-001', msg('r2', 'reviewer', 't2'))
+    useStore.getState().appendMessage('C-001', msg('a2', 'agent', 't2'))
+
+    const { text, removedTurnIds } = useStore.getState().rewindThread('C-001', 'a2')
+    expect(text).toBe('text-r2')
+    expect(removedTurnIds).toEqual(['t2'])
+    expect(useStore.getState().turns['C-001'].map((t) => t.turn_id)).toEqual(['t1'])
+    // The active pointer followed t2 into the bin — it falls back to the last
+    // surviving turn rather than dangling at a turn that no longer exists.
+    expect(useStore.getState().activeTurnId['C-001']).toBe('t1')
   })
 
   it('setCaseList sets caseList', () => {
