@@ -11,26 +11,21 @@ type Props = {
   onSelect: (id: string) => void
 }
 
+// Clear-history must reset the SERVER's per-session memory too — the
+// orchestrator's multi-turn input list and the exact-match qa_cache —
+// otherwise a question previously answered in this session would replay
+// its cached answer the next time it's asked. We hit the rewind endpoint
+// (which clears both server-side caches) for the active case only, then
+// clear that case's front-end state.
+export async function handleClearHistoryForActive() {
+  const { activeCase, clearCaseHistory } = useStore.getState()
+  if (!activeCase) return
+  await postRewind(activeCase, '').catch((err) =>
+    console.error(`Failed to clear server cache for case ${activeCase}`, err))
+  clearCaseHistory(activeCase)
+}
+
 export function Sidebar({ cases, activeCase, unread, onSelect }: Props) {
-  const clearHistory = useStore((s) => s.clearHistory)
-  const threads = useStore((s) => s.threads)
-
-  // Clear-history must reset the SERVER's per-session memory too — the
-  // orchestrator's multi-turn input list and the exact-match qa_cache —
-  // otherwise a question previously answered in this session would replay
-  // its cached answer the next time it's asked. We hit the rewind endpoint
-  // (which clears both server-side caches) for every case that has a
-  // thread, then clear the front-end state.
-  async function handleClearHistory() {
-    const caseIds = Object.keys(threads)
-    await Promise.all(caseIds.map((id) =>
-      postRewind(id, '').catch((err) => {
-        console.error(`Failed to clear server cache for case ${id}`, err)
-      })
-    ))
-    clearHistory()
-  }
-
   return (
     <nav className={styles.sidebar}>
       <AppHeader />
@@ -46,8 +41,8 @@ export function Sidebar({ cases, activeCase, unread, onSelect }: Props) {
         ))}
       </div>
       <div className={styles.footer}>
-        <button className={styles.clearBtn} onClick={handleClearHistory}>
-          Clear History
+        <button className={styles.clearBtn} onClick={handleClearHistoryForActive}>
+          Clear this case
         </button>
       </div>
     </nav>
