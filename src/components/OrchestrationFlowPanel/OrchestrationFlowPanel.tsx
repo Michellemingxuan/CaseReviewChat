@@ -287,11 +287,18 @@ export function OrchestrationFlowPanel({ caseId }: { caseId: string | null }) {
   //   padding/borders (≈12px) ≈ 88px. SLOT carries enough headroom
   //   for nodes to sit cleanly without bottom-clipping.
   const SLOT = 110
+  // A reviewer node (general_specialist) renders WITHOUT a sub-question — just
+  // name + role + duration — so it needs far less than a full SLOT. Reserving a
+  // full 110px left ~60px of dead space under it and made the team branch look
+  // unbalanced whenever the general specialist was invoked. Give sub-question-
+  // less nodes a shorter slot so the branch height matches its actual content.
+  const REVIEW_SLOT = 60
   const HEADER = 28
   const reportSlots = Math.max(1, reportCalls.length)
-  const teamSlots = Math.max(1, teamCalls.length)
   const reportHeight = HEADER + reportSlots * SLOT
-  const teamHeight = HEADER + teamSlots * SLOT
+  const teamContentH =
+    specialistCalls.length * SLOT + generalSpecialistCalls.length * REVIEW_SLOT
+  const teamHeight = HEADER + Math.max(SLOT, teamContentH)
   const branchGap = 10
   const totalBranchH = reportHeight + branchGap + teamHeight
   // Fork tip Y positions as percentages of the branchStack height — the
