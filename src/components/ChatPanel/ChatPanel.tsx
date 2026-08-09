@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useStore } from '../../store'
 import { useSSE } from '../../hooks/useSSE'
+import { useCaseHistory } from '../../hooks/useCaseHistory'
 import { postMessage, postRewind, postCancelTurn } from '../../api'
 import { ChatHeader } from './ChatHeader'
 import { MessageList } from './MessageList'
@@ -38,6 +39,7 @@ export function ChatPanel() {
   const [prefill, setPrefill] = useState<{ text: string; key: number }>({ text: '', key: 0 })
 
   useSSE(activeCase)
+  useCaseHistory(activeCase)
 
   const messages = activeCase ? (threads[activeCase] ?? []) : []
   const lastMsg = messages[messages.length - 1]

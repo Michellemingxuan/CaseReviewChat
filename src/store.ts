@@ -36,6 +36,13 @@ export const useStore = create<StoreState>()(
           // message this client already has (e.g. it dropped and reconnected
           // mid-turn). Skip the duplicate instead of showing two bubbles.
           if (msg.id && thread.some((m) => m.id === msg.id)) return {}
+          // Idempotent by (turn_id, role): after history was loaded from the
+          // server, the live SSE stream replays the same turn's message under a
+          // DIFFERENT id. Applies to any role carrying a turn_id (agent always;
+          // reviewer when the server tags it). Optimistic reviewer bubbles have
+          // no turn_id and stay governed by the text+recency guard in useSSE.
+          if (msg.turn_id &&
+              thread.some((x) => x.turn_id === msg.turn_id && x.role === msg.role)) return {}
           return {
             threads: { ...state.threads, [caseId]: [...thread, msg] },
           }
@@ -102,6 +109,37 @@ export const useStore = create<StoreState>()(
 
       clearHistory: () =>
         set({ threads: {}, turns: {}, activeTurnId: {}, unread: new Set() }),
+
+      clearCaseHistory: (caseId) =>
+        set((state) => {
+          const threads = { ...state.threads }; delete threads[caseId]
+          const turns = { ...state.turns }; delete turns[caseId]
+          const activeTurnId = { ...state.activeTurnId }; delete activeTurnId[caseId]
+          const unread = new Set(state.unread); unread.delete(caseId)
+          return { threads, turns, activeTurnId, unread }
+        }),
+
+      setCaseHistory: (caseId, messages) =>
+        set((state) => {
+          // Empty server history (e.g. a case whose latest snapshot predates the
+          // raw-qa_cache column, so /history is empty): keep the client's thread
+          // rather than wiping it.
+          if (messages.length === 0) return {}
+          const existing = state.threads[caseId] ?? []
+          // Server history is authoritative for completed turns. Preserve any
+          // local message the server doesn't represent (e.g. an in-flight turn
+          // not yet in the server's qa_cache): match by id, by (turn_id, role),
+          // or by (role, text) for optimistic bubbles that carry no turn_id.
+          const ids = new Set(messages.map((m) => m.id))
+          const turnRoles = new Set(
+            messages.filter((m) => m.turn_id).map((m) => `${m.turn_id} ${m.role}`))
+          const roleTexts = new Set(messages.map((m) => `${m.role} ${m.text}`))
+          const extras = existing.filter((m) =>
+            !ids.has(m.id) &&
+            !(m.turn_id && turnRoles.has(`${m.turn_id} ${m.role}`)) &&
+            !roleTexts.has(`${m.role} ${m.text}`))
+          return { threads: { ...state.threads, [caseId]: [...messages, ...extras] } }
+        }),
 
       // ── Turn / trace actions ───────────────────────────────────────────
 

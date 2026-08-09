@@ -1,10 +1,17 @@
-import type { CaseList } from './types'
+import type { CaseList, Message, HistoryResponse } from './types'
 const BASE = '/api'
 
 export async function fetchCaseList(): Promise<CaseList> {
   const res = await fetch(`${BASE}/cases`)
   if (!res.ok) throw new Error(`fetchCaseList failed: ${res.status}`)
   return res.json()
+}
+
+export async function fetchHistory(caseId: string): Promise<Message[]> {
+  const res = await fetch(`${BASE}/cases/${caseId}/history`)
+  if (!res.ok) throw new Error(`fetchHistory failed: ${res.status}`)
+  const data: HistoryResponse = await res.json()
+  return data.messages
 }
 
 export async function postMessage(caseId: string, text: string): Promise<void> {

@@ -12,7 +12,8 @@ type Props = {
   isActive?: boolean
 }
 
-function formatTime(timestamp: number): string {
+function formatTime(timestamp?: number): string {
+  if (!timestamp || Number.isNaN(timestamp)) return ''
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
