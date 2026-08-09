@@ -28,7 +28,7 @@ load_dotenv()
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_BACKEND = "http://localhost:3001"
+DEFAULT_BACKEND = "http://localhost:49002"
 DEFAULT_CASE_ID = "C-7891"
 DEFAULT_MAX_TURNS = 5
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Case Review Chat">
+  <!-- Amex Bright Blue box + white AI sparkles. Two concave 4-point stars and
+       a dot: the large one carries the silhouette at 16px, the small one and
+       the dot add the "generated" read without adding strokes that blur. -->
+  <rect width="32" height="32" rx="7.5" fill="#006FCF"/>
+  <path d="M13.6 7.2c.62 4.28 3.5 7.16 7.78 7.78-4.28.62-7.16 3.5-7.78 7.78-.62-4.28-3.5-7.16-7.78-7.78 4.28-.62 7.16-3.5 7.78-7.78z" fill="#FFFFFF"/>
+  <path d="M22.6 18.4c.3 2.06 1.68 3.44 3.74 3.74-2.06.3-3.44 1.68-3.74 3.74-.3-2.06-1.68-3.44-3.74-3.74 2.06-.3 3.44-1.68 3.74-3.74z" fill="#FFFFFF" fill-opacity=".92"/>
+  <circle cx="23.4" cy="9.6" r="1.7" fill="#FFFFFF" fill-opacity=".8"/>
+</svg>

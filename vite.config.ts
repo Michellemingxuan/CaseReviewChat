@@ -23,7 +23,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:49002',
         changeOrigin: true,
         // SSE: long-lived stream + don't buffer responses.
         timeout: 0,
