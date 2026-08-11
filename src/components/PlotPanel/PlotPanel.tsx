@@ -135,12 +135,22 @@ export function PlotPanel({ caseId }: { caseId: string | null }) {
                     spec={active.chart.vega_spec as Record<string, unknown>}
                     alt={active.chart.topic}
                   />
-                ) : (
+                ) : active.chart.url ? (
                   <img
                     className={s.image}
                     src={active.chart.url}
                     alt={active.chart.topic}
                   />
+                ) : (
+                  // No renderer applies: not a table, no Vega spec, and no
+                  // PNG url. `<img src="">` would resolve against the page
+                  // and paint the browser's BROKEN-IMAGE glyph — which reads
+                  // as a corrupted chart rather than a backend payload that
+                  // arrived incomplete. Say so instead; the claim above still
+                  // carries the finding.
+                  <div className={s.tableEmpty}>
+                    No renderable chart data arrived for this topic.
+                  </div>
                 )}
               </div>
               <div className={s.meta}>
