@@ -1,0 +1,185 @@
+.grid {
+  display: grid;
+  /* One row that fills the content area. Without an explicit row the
+     implicit track is `auto` and sizes to the tallest panel's content,
+     so a short report leaves the column ending mid-screen. */
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 16px;
+  background: var(--j-bg);
+}
+
+/* Three columns: report | gutter | chat | gutter | trace.
+   The trace takes the remainder so it always absorbs slack. */
+.split {
+  grid-template-columns:
+    var(--j-col-report, 390px) 4px
+    var(--j-col-chat, 1.35fr) 4px
+    minmax(320px, 1fr);
+}
+
+/* Below ~1250px three columns stop being readable — the trace in particular
+   is dense monospace and cannot take a share of a narrow window. Rather than
+   let it shrink past use (or overflow off screen), the trace drops to its own
+   full-width row beneath the other two.
+
+   Children are placed explicitly because DOM order is
+   report / resizer / chat / resizer / trace, which auto-placement would
+   scatter across the new tracks. */
+@media (max-width: 1250px) {
+  .split {
+    grid-template-columns: var(--j-col-report, 1fr) 4px minmax(0, 1.25fr);
+    grid-template-rows: minmax(0, 1.15fr) minmax(220px, 0.85fr);
+  }
+  .split > *:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .split > *:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .split > *:nth-child(3) { grid-column: 3; grid-row: 1; }
+  /* The chat/trace resizer has no meaning once they are stacked: it drags a
+     WIDTH variable that no longer governs either box. Hide it rather than
+     leave a handle that silently does nothing. */
+  .split > *:nth-child(4) { display: none; }
+  .split > *:nth-child(5) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 12px;
+  }
+}
+
+/* Narrower still: one column, everything stacked, page scrolls. */
+@media (max-width: 860px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(320px, auto) minmax(320px, auto) minmax(320px, auto);
+    overflow-y: auto;
+  }
+  .split > *:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .split > *:nth-child(2) { display: none; }
+  .split > *:nth-child(3) { grid-column: 1; grid-row: 2; margin-top: 12px; }
+  .split > *:nth-child(5) { grid-column: 1; grid-row: 3; }
+}
+/* Report alone — full width, capped so a wide monitor doesn't stretch
+   prose to an unreadable measure. */
+.report { grid-template-columns: minmax(0, 1100px); justify-content: center; }
+/* Assistant alone — chat + trace. */
+.assistant {
+  grid-template-columns: var(--j-col-chat, 1.35fr) 4px minmax(320px, 1fr);
+}
+@media (max-width: 1000px) {
+  .assistant {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1.15fr) minmax(220px, 0.85fr);
+  }
+  .assistant > *:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .assistant > *:nth-child(2) { display: none; }
+  .assistant > *:nth-child(3) { grid-column: 1; grid-row: 2; margin-top: 12px; }
+}
+
+.cell {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* The cell stretches to the row, but its panel is a flex child and would
+   otherwise size to its own content — a short report would render as a
+   stub box against full-height neighbours. */
+.cell > * { flex: 1; min-height: 0; }
+/* The chat and trace panels carry their own chrome from the classic shell;
+   give them the journey card frame so they sit level with the report. */
+.chatCell, .traceCell {
+  background: var(--j-surface);
+  border: 1px solid var(--j-border);
+  border-radius: var(--j-radius-card);
+  box-shadow: var(--j-shadow-card);
+}
+
+/* ── collapsible trace ──────────────────────────────────────────────── */
+/* Folded: the last track becomes a fixed spine. The chat takes the freed
+   width because it is the column whose content actually reflows usefully. */
+.traceHidden {
+  grid-template-columns:
+    var(--j-col-report, 390px) 4px
+    minmax(0, 1fr) 34px;
+}
+.traceHidden > *:nth-child(5) { grid-column: 4; }
+
+.traceCell { position: relative; }
+/* Sits over the trace panel's own header bar, which has room at its right. */
+.traceFold {
+  position: absolute;
+  top: 8px; right: 10px;
+  z-index: 5;
+  width: 24px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #C7D6EE;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.traceFold:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+
+.traceSpine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border: 0;
+  border-radius: var(--j-radius-card);
+  background: var(--j-sys-card);
+  color: var(--j-sys-dim);
+  font-family: inherit;
+  cursor: pointer;
+  min-height: 0;
+  overflow: hidden;
+  transition: color 0.15s;
+}
+.traceSpine:hover { color: var(--j-sys-text-strong); }
+.spineChevron { font-size: 11px; }
+.spineLabel {
+  /* Rotated so the label reads bottom-to-top up the spine, which is the
+     convention for a vertical tab and keeps it legible at 34px wide. */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: var(--j-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 1250px) {
+  /* Stacked: the spine becomes a full-width bar under the other panels. */
+  .traceHidden { grid-template-rows: minmax(0, 1fr) 34px; }
+  .traceSpine { flex-direction: row; gap: 8px; padding: 0 14px; }
+  .traceSpine .spineLabel { writing-mode: horizontal-tb; transform: none; }
+  .traceSpine .spineChevron { transform: rotate(90deg); }
+}
+
+/* ── resizers ───────────────────────────────────────────────────────── */
+.resizer {
+  position: relative;
+  z-index: 8;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+.resizer::before {
+  content: '';
+  position: absolute;
+  inset: 8px 1px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.resizer:hover::before, .resizer:global(.dragging)::before {
+  background: var(--j-accent);
+}

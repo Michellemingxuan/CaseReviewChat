@@ -1,0 +1,104 @@
+/**
+ * Journey UI design tokens.
+ *
+ * Values are taken from `AgenticSys_v2/brainstorm/Interactive_journey_UI_design.svg`
+ * (its <style> block and inline fills), not matched by eye. When the design
+ * file changes, re-read it rather than nudging these by hand.
+ *
+ * Two palettes live here on purpose. The document surfaces (rail aside) are
+ * a light slate scale; the reasoning trace is a dark "system" panel — the
+ * design uses darkness to mark machine reasoning as a different KIND of
+ * content from the reviewer's report, so the trace tokens are not a dark
+ * theme and must not be collapsed into one.
+ */
+
+.journeyScope {
+  /* ── brand / accent ─────────────────────────────────────────────── */
+  --j-accent: #0B78D0;
+  --j-accent-deep: #0961AB;
+  --j-accent-soft: #E2F1FC;
+  --j-accent-line: #C3E1F7;
+
+  /* ── light surfaces ─────────────────────────────────────────────── */
+  --j-bg: #F1F5FA;
+  --j-surface: #FFFFFF;
+  --j-surface-soft: #FAFBFD;
+  --j-surface-head: #F4F6F9;
+  --j-chip: #F1F5FA;
+  --j-border: #E3E8EF;
+  --j-border-soft: #EDF1F6;
+  --j-border-strong: #D6DEE9;
+
+  /* ── light text ─────────────────────────────────────────────────── */
+  --j-ink: #0F172A;
+  --j-ink-2: #334155;
+  --j-ink-3: #475569;
+  --j-ink-4: #64748B;
+  --j-ink-mute: #94A3B8;
+  --j-label: #7C8DA6;
+
+  /* ── navigation rail (dark) ─────────────────────────────────────── */
+  --j-rail-bg: #0E1A2B;
+  --j-rail-active: #16294A;
+  --j-rail-accent: #4FA9E8;
+  --j-rail-rule: #1D3050;
+  --j-rail-text: #E6EDF7;
+  --j-rail-dim: #9FB0C6;
+  --j-rail-btn-border: #2A3D5C;
+  --j-rail-btn-text: #B9C7D9;
+  --j-rail-pill-border: #2B4470;
+  --j-rail-pill-text: #86BFE8;
+
+  /* ── reasoning trace (dark system panel) ────────────────────────── */
+  --j-sys-card: #1E2A3F;
+  --j-sys-box: #17212F;
+  --j-sys-block: #243149;
+  --j-sys-rule: #2E3B54;
+  --j-sys-head: #E8EEF9;
+  --j-sys-text: #A9BCD8;
+  --j-sys-text-strong: #E2EAF7;
+  --j-sys-dim: #8FA3C2;
+  --j-sys-link: #5FB6EE;
+  --j-sys-mono: #C7D6EE;
+
+  /* ── status ─────────────────────────────────────────────────────── */
+  --j-warn-bg: #FEF3C7;
+  --j-warn-ink: #92400E;
+  --j-warn-accent: #B45309;
+  --j-danger: #DC2626;
+  --j-live: #22C55E;
+
+  /* ── type ───────────────────────────────────────────────────────── */
+  --j-font: Inter, 'DM Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --j-font-mono: 'SF Mono', 'IBM Plex Mono', Menlo, Consolas, monospace;
+
+  /* The design is drawn at a compact desk-tool scale — 11.5px body,
+     10px meta. Named so panels stay consistent instead of each picking
+     its own near-miss size. */
+  --j-fs-h1: 20px;
+  --j-fs-h2: 11.5px;   /* eyebrow / panel title, letterspaced + uppercase */
+  --j-fs-h3: 12.5px;
+  --j-fs-body: 11.5px;
+  --j-fs-sm: 11px;
+  --j-fs-meta: 10px;
+  --j-fs-micro: 9.5px;
+
+  /* ── shape ──────────────────────────────────────────────────────── */
+  --j-radius-card: 12px;
+  --j-radius-ctl: 9px;
+  --j-radius-pill: 999px;
+  --j-shadow-card: 0 2px 3px rgba(15, 23, 42, 0.09);
+
+  --j-rail-w: 190px;
+  --j-header-h: 76px;
+}
+
+/* Uppercase letterspaced eyebrow — recurs on every panel head in the
+   design (CASE REPORT, CASE REVIEW ASSISTANT, REASONING TRACE, PINNED
+   FIGURES...). One rule so they cannot drift apart. */
+.journeyScope :is(.jEyebrow) {
+  font-size: var(--j-fs-h2);
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}

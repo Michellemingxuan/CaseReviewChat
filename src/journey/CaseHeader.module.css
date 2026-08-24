@@ -1,0 +1,79 @@
+.header {
+  grid-area: header;
+  height: var(--j-header-h);
+  background: var(--j-surface);
+  border-bottom: 1px solid var(--j-border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.identity { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.back {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--j-accent);
+  font-family: inherit;
+  font-size: var(--j-fs-meta);
+  font-weight: 600;
+  cursor: pointer;
+}
+.back:disabled { color: var(--j-ink-mute); cursor: default; }
+.back:not(:disabled):hover { text-decoration: underline; }
+
+.titleRow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+
+.caseId {
+  font-size: var(--j-fs-h1);
+  font-weight: 700;
+  color: var(--j-ink);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.reviewType { font-size: 17px; font-weight: 600; color: var(--j-ink-2); }
+
+.statusPill, .pillarPill {
+  align-self: center;
+  padding: 3px 12px;
+  border-radius: var(--j-radius-pill);
+  font-size: var(--j-fs-meta);
+  white-space: nowrap;
+}
+.statusPill { background: var(--j-warn-bg); color: var(--j-warn-ink); font-weight: 600; }
+.pillarPill { background: var(--j-accent-soft); color: var(--j-accent-deep); font-weight: 700; }
+
+/* ── actions ────────────────────────────────────────────────────────── */
+.actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+.ghost, .primary {
+  height: 36px;
+  padding: 0 18px;
+  border-radius: var(--j-radius-ctl);
+  font-family: inherit;
+  font-size: var(--j-fs-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ghost {
+  background: var(--j-surface);
+  border: 1px solid var(--j-border-strong);
+  color: var(--j-ink-2);
+  font-weight: 600;
+}
+.ghost:not(:disabled):hover { border-color: var(--j-accent); }
+.primary {
+  background: var(--j-accent);
+  border: 1px solid var(--j-accent);
+  color: #fff;
+  font-weight: 700;
+}
+.primary:not(:disabled):hover { background: var(--j-accent-deep); }
+
+.ghost:disabled, .primary:disabled { opacity: 0.45; cursor: not-allowed; }
