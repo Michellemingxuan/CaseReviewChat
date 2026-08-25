@@ -91,6 +91,34 @@
 .cell > * { flex: 1; min-height: 0; }
 /* The chat and trace panels carry their own chrome from the classic shell;
    give them the journey card frame so they sit level with the report. */
+/* Trace above, orchestration strip below. 2fr/1fr puts the flow at roughly a
+   third, which is enough for the agent list without stealing from the trace —
+   already the densest panel here. The reviewer's drag overrides it. */
+.traceCell {
+  display: grid;
+  grid-template-rows: var(--j-row-trace, 2fr) 4px minmax(90px, 1fr);
+  padding: 0;
+}
+.traceTop { min-height: 0; overflow: hidden; }
+
+.rowResizer {
+  position: relative;
+  cursor: row-resize;
+  background: transparent;
+  z-index: 8;
+}
+.rowResizer::before {
+  content: '';
+  position: absolute;
+  inset: 1px 8px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.rowResizer:hover::before, .rowResizer:global(.dragging)::before {
+  background: var(--j-accent);
+}
+
 .chatCell, .traceCell {
   background: var(--j-surface);
   border: 1px solid var(--j-border);

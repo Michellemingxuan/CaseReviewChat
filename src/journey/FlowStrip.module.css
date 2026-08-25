@@ -1,0 +1,87 @@
+/* Dark, like the trace it sits under — this is machine activity, not the
+   reviewer's document. Shares the trace's `--j-sys-*` palette so the two read
+   as one panel split in two, rather than two panels stacked. */
+.strip {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #0E1828;
+  color: #C8D5EE;
+  border-top: 1px solid #1F2D48;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, #14213A, #0E1828);
+  border-bottom: 1px solid #1F2D48;
+  flex-shrink: 0;
+}
+.title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #E2EAF7;
+}
+.badge {
+  padding: 1px 8px;
+  border-radius: var(--j-radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  color: #98A6C5;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.badgeLive { background: rgba(34, 197, 94, 0.16); color: #6EE7A8; }
+.count {
+  margin-left: auto;
+  font-family: var(--j-font-mono);
+  font-size: 9.5px;
+  color: #7C8DA6;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 14px 10px;
+}
+.empty { margin: 8px 0; color: #7C8DA6; font-size: 10px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.row:last-child { border-bottom: 0; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dotDone { background: #4ADE80; }
+.dotError { background: #F87171; }
+/* Pulsing so a stalled turn is visibly still trying, rather than looking
+   identical to one that finished. */
+.dotRunning { background: #5FB6EE; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+
+.tool {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--j-font-mono);
+  font-size: 10px;
+  color: #C7D6EE;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timing {
+  flex-shrink: 0;
+  font-family: var(--j-font-mono);
+  font-size: 9.5px;
+  color: #7C8DA6;
+}

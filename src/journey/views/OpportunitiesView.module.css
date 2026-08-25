@@ -384,3 +384,34 @@
 }
 .retractedClear:not(:disabled):hover { background: var(--j-warn-accent); color: #fff; }
 .retractedClear:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── comparing figures ──────────────────────────────────────────────── */
+/* A scrolling column, not a grid: reading a FICO trend against a score trend
+   means comparing the same x-range twice, and full-width stacked tiles keep
+   that range the same apparent width in both. A 2-up grid halves it. */
+.compareColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 620px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.compareColumn .enlarged {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--j-border-soft);
+}
+.compareColumn .enlarged:last-child { border-bottom: 0; padding-bottom: 0; }
+/* Shorter when several are stacked, so two fit without scrolling. */
+.compareColumn .enlargedImg { height: 260px; }
+
+.compareNote {
+  margin: 10px 0 0;
+  font-size: var(--j-fs-micro);
+  color: var(--j-warn-ink);
+  background: var(--j-warn-bg);
+  border: 1px solid #F3D9A6;
+  border-radius: 6px;
+  padding: 6px 9px;
+  line-height: 1.5;
+}

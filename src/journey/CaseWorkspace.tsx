@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AssistantPanel } from './chat/AssistantPanel'
 import { AuditTracePanel } from '../components/AuditTracePanel/AuditTracePanel'
 import { CaseReportPanel } from './CaseReportPanel'
+import { FlowStrip } from './FlowStrip'
 import { usePins } from './usePins'
 import {
   applyLayout, clampLayout, clampLayoutTogether, loadLayout, setupResizer,
@@ -24,6 +25,9 @@ const TRACE_MIN = 320
 const RULES: Record<string, ClampRule> = {
   '--j-col-report': { min: 280, maxVw: 0.45 },
   '--j-col-chat': { min: 420, maxVw: 0.6 },
+  // Height of the trace, with the flow strip taking the remainder. Defaults
+  // to 2fr/1fr in CSS; this only exists once the reviewer drags it.
+  '--j-row-trace': { min: 160, maxVh: 0.8 },
 }
 
 type Props = {
@@ -57,6 +61,8 @@ export function CaseWorkspace({ caseId, ask, onAsk }: Props) {
   const gridRef = useRef<HTMLDivElement | null>(null)
   const reportResizerRef = useRef<HTMLDivElement | null>(null)
   const chatResizerRef = useRef<HTMLDivElement | null>(null)
+  const traceStackRef = useRef<HTMLDivElement | null>(null)
+  const flowResizerRef = useRef<HTMLDivElement | null>(null)
 
 
   useEffect(() => {
@@ -70,11 +76,14 @@ export function CaseWorkspace({ caseId, ask, onAsk }: Props) {
       // against the viewport TOGETHER. The second pass is what stops a pair
       // of individually-legal widths from squeezing the trace column off
       // screen when the window moves to a smaller display.
-      const vars = Object.keys(RULES)
       const perVar = clampLayout(loadLayout(LAYOUT_KEY), RULES)
       // Reserve: both gutters plus the trace column's floor.
-      const together = clampLayoutTogether(perVar, vars, 8 + TRACE_MIN)
-      applyLayout(gridRef.current, together, vars)
+      const together = clampLayoutTogether(
+        perVar, ['--j-col-report', '--j-col-chat'], 8 + TRACE_MIN)
+      applyLayout(gridRef.current, together, ['--j-col-report', '--j-col-chat'])
+      // The trace/flow split is vertical and lives on its own container, so
+      // it is not part of the horizontal joint-fit calculation above.
+      applyLayout(traceStackRef.current, together, ['--j-row-trace'])
     }
     apply()
 
@@ -106,6 +115,15 @@ export function CaseWorkspace({ caseId, ask, onAsk }: Props) {
         varName: '--j-col-chat',
         minBefore: RULES['--j-col-chat'].min,
         minAfter: TRACE_MIN,
+        storageKey: LAYOUT_KEY,
+      }),
+      setupResizer({
+        handle: flowResizerRef.current,
+        container: traceStackRef.current,
+        axis: 'y',
+        varName: '--j-row-trace',
+        minBefore: 160,
+        minAfter: 90,
         storageKey: LAYOUT_KEY,
       }),
     ]
@@ -141,11 +159,17 @@ export function CaseWorkspace({ caseId, ask, onAsk }: Props) {
       )}
 
       {traceOpen ? (
-        <div className={`${s.cell} ${s.traceCell}`}>
-          {/* The fold control is rendered BY the panel, inside its flex
-              header. Overlaying it here put it on top of the "next turn"
+        <div ref={traceStackRef} className={`${s.cell} ${s.traceCell}`}>
+          {/* Trace above, orchestration below, one dark surface split in two.
+              The fold control is rendered BY the panel, inside its flex
+              header — overlaying it here put it on top of the "next turn"
               arrow and swallowed those clicks. */}
-          <AuditTracePanel caseId={caseId} onCollapse={() => setTraceOpen(false)} />
+          <div className={s.traceTop}>
+            <AuditTracePanel caseId={caseId} onCollapse={() => setTraceOpen(false)} />
+          </div>
+          <div ref={flowResizerRef} className={s.rowResizer}
+               title="Drag to resize · double-click to reset" />
+          <FlowStrip caseId={caseId} />
         </div>
       ) : (
         /* Collapsed to a spine rather than removed outright: a reviewer needs

@@ -38,6 +38,12 @@ export function OpportunitiesView({ caseId }: { caseId: string | null }) {
     () => figures.find((f) => f.pin_id === focusedId) ?? figures[0] ?? null,
     [figures, focusedId],
   )
+  // Selected figures win over the focused one: ticking two says "show me
+  // these together", and that should not need a second, separate gesture.
+  const compare = useMemo(() => {
+    const picked = figures.filter((f) => selected.has(f.pin_id))
+    return picked.length > 0 ? picked : (focused ? [focused] : [])
+  }, [figures, selected, focused])
 
   const loadOpps = useCallback(async () => {
     if (!caseId) { setOpps([]); return }
@@ -323,20 +329,44 @@ export function OpportunitiesView({ caseId }: { caseId: string | null }) {
           </div>
         </Panel>
 
-        {/* The enlarged view. A thumbnail grid is for FINDING a figure; a
-            reviewer deciding whether it belongs in the report has to read
-            its axes, and this is where that happens. */}
-        <Panel title="Enlarged Figure" count={0} countLabel="">
-          {!focused && <p className={s.none}>Pin a figure to inspect it here.</p>}
-          {focused && (
-            <figure className={s.enlarged}>
-              <PinFigure pin={focused} className={s.enlargedImg} />
-              <figcaption className={s.enlargedCaption}>
-                <b>{focused.topic}</b>
-                {focused.text && <span>{focused.text}</span>}
-                <span className={s.enlargedSource}>{focused.source}</span>
-              </figcaption>
-            </figure>
+        {/* The comparison view.
+            Selecting figures here does double duty: it is the same selection
+            the synthesis runs over, so lining two charts up to read them
+            together also sets them up to be reasoned about together. One
+            concept, not two.
+
+            Tiled in a scrolling column rather than a grid: comparing a FICO
+            trend against a score trend means reading the same x-range twice,
+            and stacked full-width tiles keep those ranges the same apparent
+            width. A 2-up grid halves it and makes the comparison harder, not
+            easier. */}
+        <Panel
+          title={compare.length > 1 ? 'Compare Figures' : 'Enlarged Figure'}
+          count={compare.length > 1 ? compare.length : 0}
+          countLabel={compare.length > 1 ? 'selected' : ''}
+        >
+          {compare.length === 0 && (
+            <p className={s.none}>
+              Pin a figure to inspect it here. Tick two or more to compare them.
+            </p>
+          )}
+          <div className={compare.length > 1 ? s.compareColumn : undefined}>
+            {compare.map((f) => (
+              <figure key={f.pin_id} className={s.enlarged}>
+                <PinFigure pin={f} className={s.enlargedImg} />
+                <figcaption className={s.enlargedCaption}>
+                  <b>{f.topic}</b>
+                  {f.text && <span>{f.text}</span>}
+                  <PinProvenance pin={f} />
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          {compare.length > 1 && (
+            <p className={s.compareNote}>
+              Axes are each figure's own — check the ranges before reading
+              across them.
+            </p>
           )}
         </Panel>
       </div>
