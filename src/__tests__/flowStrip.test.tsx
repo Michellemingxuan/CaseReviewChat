@@ -30,9 +30,9 @@ describe('FlowStrip', () => {
     render(<FlowStrip caseId="A" />)
 
     expect(screen.getByText('Report')).toBeTruthy()
-    expect(screen.getByText('Team')).toBeTruthy()
+    expect(screen.getByText('Specialists')).toBeTruthy()
     expect(screen.getByText('screen')).toBeTruthy()
-    expect(screen.getByText('plan')).toBeTruthy()
+    expect(screen.getByText('team')).toBeTruthy()   // was 'plan'
     expect(screen.getByText('synthesis')).toBeTruthy()
   })
 

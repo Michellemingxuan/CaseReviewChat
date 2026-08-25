@@ -85,12 +85,17 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
       </div>
 
       <div className={s.flow}>
-        <div className={`${s.stage} ${s[screened] ?? ''}`}>
-          <span className={`${s.dot} ${s[screened] ?? ''}`} />screen
-        </div>
-        <span className={s.arrow}>→</span>
-        <div className={`${s.stage} ${s[planned] ?? ''}`}>
-          <span className={`${s.dot} ${s[planned] ?? ''}`} />plan
+        {/* Screen sits ABOVE team rather than beside it: they are the two
+            single-agent stages before the fork, and stacking them buys back
+            the width the branches need. */}
+        <div className={s.entry}>
+          <div className={`${s.stage} ${s.screen} ${s[screened] ?? ''}`}>
+            <span className={`${s.dot} ${s[screened] ?? ''}`} />screen
+          </div>
+          <span className={s.arrowDown}>↓</span>
+          <div className={`${s.stage} ${s.teamStage} ${s[planned] ?? ''}`}>
+            <span className={`${s.dot} ${s[planned] ?? ''}`} />team
+          </div>
         </div>
         <span className={s.arrow}>→</span>
 
@@ -105,9 +110,9 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
               ? <div className={s.placeholder}>not dispatched</div>
               : reportCalls.map(node)}
           </div>
-          <div className={`${s.branch} ${s.team}`}>
+          <div className={`${s.branch} ${s.specialists}`}>
             <div className={s.branchLabel}>
-              Team <span className={s.branchCount}>{teamCalls.length || 'idle'}</span>
+              Specialists <span className={s.branchCount}>{teamCalls.length || 'idle'}</span>
             </div>
             {teamCalls.length === 0
               ? <div className={s.placeholder}>not dispatched</div>

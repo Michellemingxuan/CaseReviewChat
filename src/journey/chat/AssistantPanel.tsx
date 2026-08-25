@@ -11,6 +11,7 @@ import s from './AssistantPanel.module.css'
 
 /** Follow-up prompts from the design's chip row. */
 const SUGGESTIONS = [
+  'Which part of the report shall I pay attention to?',
   'What transactions are connected?',
   'What evidence supports it?',
   'What evidence contradicts it?',

@@ -70,8 +70,14 @@
   padding: 10px 14px;
   overflow-x: auto;
   overflow-y: hidden;
+  align-items: center;
 }
 
+/* Stage and branch colours are the trace panel's own phase palette, lifted
+   verbatim from its `[ QUESTION CHECK ] / [ TEAM CONSTRUCTION ] /
+   [ SPECIALIST ANALYSIS ] / [ REPORT AGENT ]` badges. The two sit in one
+   panel, so a node here should be the same colour as the block it points at
+   in the trace above — different palettes would read as different systems. */
 .stage {
   flex-shrink: 0;
   display: flex;
@@ -79,43 +85,75 @@
   gap: 6px;
   padding: 6px 9px;
   border-radius: 8px;
-  background: linear-gradient(180deg, #1B2942, #141F33);
+  background: #17212F;
   border: 1px solid #2E3B54;
   font-family: var(--j-font-mono);
   font-size: 9.5px;
+  font-weight: 600;
   color: #C7D6EE;
   white-space: nowrap;
 }
-.stage.done { border-color: #2F5E4A; }
-.stage.running { border-color: #2B6288; }
-.stage.error { border-color: #7F3535; }
+/* screen  -> [ QUESTION CHECK ], green */
+.screen { background: rgba(45, 143, 92, 0.18); color: #6BE0A2; border-color: rgba(45, 143, 92, 0.4); }
+/* team    -> [ TEAM CONSTRUCTION ], purple */
+.teamStage { background: rgba(112, 72, 176, 0.22); color: #C0A4F2; border-color: rgba(112, 72, 176, 0.45); }
+/* synthesis keeps the trace's default tag blue */
+.stage.error { border-color: rgba(197, 48, 48, 0.6); }
+
+/* screen above team: the two single-agent stages before the fork. */
+.entry {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.arrowDown { color: #46587A; font-size: 10px; line-height: 1; }
 
 .arrow { flex-shrink: 0; color: #46587A; font-size: 11px; line-height: 1; }
 
 /* Stacked, so the two branches read as simultaneous rather than sequential. */
+/* Bounded to the strip so the fork itself never scrolls out of view; a long
+   specialist list scrolls INSIDE its branch instead. Losing sight of the
+   shape to read one branch would defeat the diagram. */
 .branches {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 100%;
+  min-height: 0;
 }
 .branch {
   min-width: 126px;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 6px 8px;
+  padding: 0 8px 6px;
   border-radius: 8px;
   background: #131E30;
   border: 1px solid #24324B;
+  min-height: 0;
+  overflow-y: auto;
   /* The accent bar is the branch's identity — same teal/indigo split the
      classic panel uses for its fork arms, lifted for a dark ground. */
   border-left-width: 3px;
 }
-.report { border-left-color: #2DD4BF; }
-.team { border-left-color: #818CF8; }
+/* report -> [ REPORT AGENT ], teal · specialists -> [ SPECIALIST ANALYSIS ], blue */
+/* Report is almost always a single agent, Specialists is the variable one —
+   so Report keeps its natural height and Specialists absorbs the remainder
+   and scrolls. Letting both shrink equally squeezed Report down to its label
+   while Specialists still overflowed. */
+.report { border-left-color: #5FCFCF; background: #102332; flex: 0 0 auto; }
+.specialists { border-left-color: #79BDFF; background: #0D2139; flex: 1 1 auto; min-height: 46px; }
 
+/* Sticky, so scrolling a long branch never leaves you looking at an
+   unlabelled list of agent names. */
 .branchLabel {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 0 3px;
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -124,8 +162,8 @@
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.report .branchLabel { color: #5EEAD4; }
-.team .branchLabel { color: #A5B4FC; }
+.report .branchLabel { color: #5FCFCF; background: #102332; }
+.specialists .branchLabel { color: #79BDFF; background: #0D2139; }
 .branchCount { margin-left: auto; font-family: var(--j-font-mono); color: #5A6C8C; }
 
 .node {
