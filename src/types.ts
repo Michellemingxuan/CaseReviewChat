@@ -309,6 +309,14 @@ export type Pin = {
   vega_spec?: Record<string, unknown> | null
   /** ChartInfo.kind — drives the card's type glyph. */
   chart_kind?: string | null
+  /** The question that produced this pin. STABLE provenance — unlike
+   *  `turn_index`, which is positional and renumbers when an earlier turn is
+   *  rewound, so a pin captured as "Turn 3" starts pointing at a different
+   *  turn. Prefer this for display. */
+  question?: string | null
+  /** True once the pin's turn has been rewound. The pin is kept, but must
+   *  not be presented as current, and is excluded from report sections. */
+  retracted?: boolean
   /** Report section this pin has been inserted into, or null. */
   section_key: string | null
   created_at: number

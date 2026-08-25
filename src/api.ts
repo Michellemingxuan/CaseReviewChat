@@ -160,3 +160,13 @@ export async function fetchPillars(): Promise<{ active: string; pillars: Pillar[
   if (!res.ok) throw new Error(`fetchPillars failed: ${res.status}`)
   return res.json()
 }
+
+/** Remove every retracted pin for a case. Retraction keeps a rewound pin
+ *  visible-but-marked; this is where the reviewer chooses to let it go. */
+export async function deleteRetractedPins(caseId: string): Promise<number> {
+  const res = await fetch(`${BASE}/cases/${caseId}/pins/retracted`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(`deleteRetractedPins failed: ${res.status}`)
+  return (await res.json()).deleted
+}

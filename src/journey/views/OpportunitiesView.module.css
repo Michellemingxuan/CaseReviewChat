@@ -349,3 +349,38 @@
   font-weight: 700;
   color: var(--j-accent-deep);
 }
+
+/* ── retracted pins ─────────────────────────────────────────────────── */
+/* Dimmed, not hidden: the reviewer filed these deliberately, so they stay
+   visible and removable rather than vanishing when a turn is rewound. */
+.pinRetracted { opacity: 0.55; }
+.pinRetracted:hover { opacity: 0.8; }
+
+.retractedBar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  border-radius: var(--j-radius-ctl);
+  background: var(--j-warn-bg);
+  border: 1px solid #F3D9A6;
+  color: var(--j-warn-ink);
+  font-size: var(--j-fs-micro);
+  line-height: 1.5;
+}
+.retractedClear {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: var(--j-surface);
+  border: 1px solid var(--j-warn-accent);
+  color: var(--j-warn-accent);
+  font-family: inherit;
+  font-size: var(--j-fs-micro);
+  font-weight: 700;
+  cursor: pointer;
+}
+.retractedClear:not(:disabled):hover { background: var(--j-warn-accent); color: #fff; }
+.retractedClear:disabled { opacity: 0.5; cursor: not-allowed; }

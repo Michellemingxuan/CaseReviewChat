@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { usePins } from '../usePins'
 import { PinFigure } from '../PinFigure'
+import { PinProvenance } from '../PinProvenance'
 import { ChartTypeIcon } from '../ChartTypeIcon'
 import s from './OpportunitiesView.module.css'
 
@@ -19,7 +20,7 @@ import s from './OpportunitiesView.module.css'
  * rather than faking a generated paragraph.
  */
 export function OpportunitiesView({ caseId }: { caseId: string | null }) {
-  const { pins, unpin, setSection, busy, reload } = usePins(caseId)
+  const { pins, unpin, setSection, clearRetracted, busy, reload } = usePins(caseId)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [opps, setOpps] = useState<Opportunity[]>([])
   const [sections, setSections] = useState<ReportSection[]>([])
@@ -97,8 +98,27 @@ export function OpportunitiesView({ caseId }: { caseId: string | null }) {
     return <div className={s.empty}><p>Select a case to see its pins.</p></div>
   }
 
+  const retracted = pins.filter((p) => p.retracted)
+
   return (
     <div className={s.wrap}>
+      {/* Retraction keeps a rewound pin rather than deleting it — pinning is
+          deliberate and rewind is one click. Letting it go stays the
+          reviewer's choice, so it gets one obvious action instead of
+          happening silently. */}
+      {retracted.length > 0 && (
+        <div className={s.retractedBar}>
+          <span>
+            <b>{retracted.length}</b> pin{retracted.length === 1 ? '' : 's'} from
+            rewound turns. Kept so nothing you filed disappears on its own —
+            they are excluded from report sections.
+          </span>
+          <button type="button" className={s.retractedClear}
+                  disabled={busy} onClick={clearRetracted}>
+            Remove {retracted.length === 1 ? 'it' : 'them'}
+          </button>
+        </div>
+      )}
       {/* Left column: what was said. Right column: what was drawn.
           Reading order runs claims -> synthesis on the left, and the figure
           grid -> the figure you are actually looking at on the right, so
@@ -112,7 +132,8 @@ export function OpportunitiesView({ caseId }: { caseId: string | null }) {
             </p>
           )}
           {insights.map((p) => (
-            <div key={p.pin_id} className={s.insight}>
+            <div key={p.pin_id}
+                 className={`${s.insight} ${p.retracted ? s.pinRetracted : ''}`}>
               <label className={s.check}>
                 <input type="checkbox" checked={selected.has(p.pin_id)}
                        onChange={() => toggle(p.pin_id)} />
@@ -264,7 +285,11 @@ export function OpportunitiesView({ caseId }: { caseId: string | null }) {
             {figures.map((p) => (
               <div
                 key={p.pin_id}
-                className={`${s.figCard} ${focused?.pin_id === p.pin_id ? s.figCardActive : ''}`}
+                className={[
+                  s.figCard,
+                  focused?.pin_id === p.pin_id ? s.figCardActive : '',
+                  p.retracted ? s.pinRetracted : '',
+                ].filter(Boolean).join(' ')}
                 onClick={() => setFocusedId(p.pin_id)}
               >
                 <label className={s.check} onClick={(e) => e.stopPropagation()}>
@@ -274,7 +299,7 @@ export function OpportunitiesView({ caseId }: { caseId: string | null }) {
                 <ChartTypeIcon kind={p.chart_kind} className={s.thumb} />
                 <div className={s.figMeta}>
                   <b>{p.topic}</b>
-                  <span>{p.source}</span>
+                  <PinProvenance pin={p} />
                 </div>
                 <div className={s.figActions} onClick={(e) => e.stopPropagation()}>
                   <select

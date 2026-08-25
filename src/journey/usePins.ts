@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { deletePin, fetchPins, postPin, postPinSection } from '../api'
+import {
+  deletePin, deleteRetractedPins, fetchPins, postPin, postPinSection,
+} from '../api'
 import type { Pin } from '../types'
 import type { TurnView } from './chat/turns'
 
@@ -56,6 +58,7 @@ export function usePins(caseId: string | null) {
       turn_id: view.turnId,
       turn_index: view.index,
       source: `Turn ${view.index}`,
+      question: view.question,
     }))
   }, [caseId, run])
 
@@ -79,6 +82,7 @@ export function usePins(caseId: string | null) {
           chart_url: c.url,
           vega_spec: c.vega_spec,
           chart_kind: c.kind,
+          question: view.question,
         })
       }
     })
@@ -96,6 +100,12 @@ export function usePins(caseId: string | null) {
     }))
   }, [caseId, run])
 
+  /** Drop every retracted pin in one action. */
+  const clearRetracted = useCallback(() => {
+    if (!caseId) return
+    void run(() => deleteRetractedPins(caseId))
+  }, [caseId, run])
+
   const unpin = useCallback((pinId: string) => {
     if (!caseId) return
     void run(() => deletePin(caseId, pinId))
@@ -107,5 +117,8 @@ export function usePins(caseId: string | null) {
     void run(() => postPinSection(caseId, pinId, sectionKey))
   }, [caseId, run])
 
-  return { pins, busy, error, reload, pinInsight, pinFigures, pinReportText, unpin, setSection }
+  return {
+    pins, busy, error, reload,
+    pinInsight, pinFigures, pinReportText, unpin, setSection, clearRetracted,
+  }
 }
