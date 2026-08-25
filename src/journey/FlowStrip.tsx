@@ -49,7 +49,24 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
   const teamCalls = calls.filter((c) => c.tool !== 'report_agent')
 
   const streaming = turn.status === 'streaming'
-  const screened = turn.question_check ? 'done' : streaming ? 'running' : 'idle'
+
+  // The flow GROWS with the turn. A stage appears when the turn actually
+  // reaches it, so a question that never gets past the screen — "what to
+  // eat" — shows one node and stops, rather than a full pipeline of stages
+  // that were never going to run. Same rule the classic panel uses.
+  const rejected = turn.question_check?.passed === false
+  const passed = turn.question_check?.passed === true
+  // The `|| activity` half is a guard against event-ordering anomalies: if
+  // downstream work somehow shows up before the check does, draw it rather
+  // than hide real activity behind a flag that has not arrived yet.
+  const activity = calls.length > 0 || runs.length > 0
+  const showTeam = !rejected && (passed || activity)
+  const showBranches = showTeam && activity
+  const showSynth = !rejected && (turn.final != null || showBranches)
+
+  const screened = rejected ? 'error'
+    : turn.question_check ? 'done'
+    : streaming ? 'running' : 'idle'
   const planned = calls.length > 0 ? 'done' : streaming ? 'running' : 'idle'
   const synth = turn.final ? 'done'
     : turn.status === 'error' ? 'error'
@@ -92,16 +109,29 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
           <div className={`${s.stage} ${s.screen} ${s[screened] ?? ''}`}>
             <span className={`${s.dot} ${s[screened] ?? ''}`} />screen
           </div>
-          <span className={s.arrowDown}>↓</span>
-          <div className={`${s.stage} ${s.teamStage} ${s[planned] ?? ''}`}>
-            <span className={`${s.dot} ${s[planned] ?? ''}`} />team
-          </div>
+          {showTeam && (
+            <>
+              <span className={s.arrowDown}>↓</span>
+              <div className={`${s.stage} ${s.teamStage} ${s[planned] ?? ''}`}>
+                <span className={`${s.dot} ${s[planned] ?? ''}`} />team
+              </div>
+            </>
+          )}
         </div>
-        <span className={s.arrow}>→</span>
+
+        {/* The reason the turn stopped, stated where it stopped. Without it a
+            rejected turn is just a lone node with no explanation. */}
+        {rejected && (
+          <span className={s.stopped}>
+            {turn.question_check?.in_scope === false ? 'out of scope' : 'not accepted'}
+          </span>
+        )}
+
+        {showBranches && <span className={s.arrow}>→</span>}
 
         {/* The fork. Two branches side by side, which is what shows that they
             ran in parallel rather than in sequence. */}
-        <div className={s.branches}>
+        {showBranches && <div className={s.branches}>
           <div className={`${s.branch} ${s.report}`}>
             <div className={s.branchLabel}>
               Report <span className={s.branchCount}>{reportCalls.length || 'idle'}</span>
@@ -118,12 +148,14 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
               ? <div className={s.placeholder}>not dispatched</div>
               : teamCalls.map(node)}
           </div>
-        </div>
+        </div>}
 
-        <span className={s.arrow}>→</span>
-        <div className={`${s.stage} ${s[synth] ?? ''}`}>
-          <span className={`${s.dot} ${s[synth] ?? ''}`} />synthesis
-        </div>
+        {showSynth && <span className={s.arrow}>→</span>}
+        {showSynth && (
+          <div className={`${s.stage} ${s[synth] ?? ''}`}>
+            <span className={`${s.dot} ${s[synth] ?? ''}`} />synthesis
+          </div>
+        )}
       </div>
     </div>
   )

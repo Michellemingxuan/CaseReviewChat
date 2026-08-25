@@ -39,6 +39,7 @@ describe('FlowStrip', () => {
   it('shows each agent and whether it has come back', () => {
     useStore.setState({
       turns: { A: [turn({ status: 'streaming',
+        question_check: { passed: true } as never,
         team_plan: [
           { call_id: 'c1', tool: 'spend_payments', sub_question: 'x' },
           { call_id: 'c2', tool: 'modeling', sub_question: 'y' },
@@ -84,14 +85,62 @@ describe('FlowStrip', () => {
     expect(screen.getByText('failed')).toBeTruthy()
   })
 
-  it('says the team is being built before any agent exists', () => {
+  it('grows with the turn: no branches before anything is dispatched', () => {
     useStore.setState({
-      turns: { A: [turn({ status: 'streaming', team_plan: [], agent_runs: [] })] },
+      turns: { A: [turn({ status: 'streaming', question_check: { passed: true } as never,
+                          team_plan: [], agent_runs: [] })] },
       activeTurnId: { A: 't1' },
     })
     render(<FlowStrip caseId="A" />)
-    // Both branches show as undispatched rather than the flow vanishing.
-    expect(screen.getAllByText('not dispatched')).toHaveLength(2)
+    expect(screen.getByText('screen')).toBeTruthy()
+    expect(screen.getByText('team')).toBeTruthy()
+    expect(screen.queryByText('Report')).toBeNull()
+    expect(screen.queryByText('Specialists')).toBeNull()
+    expect(screen.queryByText('synthesis')).toBeNull()
+  })
+
+  it('shows ONLY screen for a question the screen rejected', () => {
+    // "what to eat" never reaches the orchestrator, so drawing team, both
+    // branches and synthesis would show a pipeline that was never going to run.
+    useStore.setState({
+      turns: { A: [turn({
+        status: 'done',
+        question_check: { passed: false, in_scope: false } as never,
+        team_plan: [], agent_runs: [],
+      })] },
+      activeTurnId: { A: 't1' },
+    })
+    render(<FlowStrip caseId="A" />)
+
+    expect(screen.getByText('screen')).toBeTruthy()
+    expect(screen.getByText('out of scope')).toBeTruthy()
+    expect(screen.queryByText('team')).toBeNull()
+    expect(screen.queryByText('Report')).toBeNull()
+    expect(screen.queryByText('Specialists')).toBeNull()
+    expect(screen.queryByText('synthesis')).toBeNull()
+  })
+
+  it('distinguishes rejected-in-scope from out-of-scope', () => {
+    useStore.setState({
+      turns: { A: [turn({ status: 'done',
+        question_check: { passed: false, in_scope: true } as never })] },
+      activeTurnId: { A: 't1' },
+    })
+    render(<FlowStrip caseId="A" />)
+    expect(screen.getByText('not accepted')).toBeTruthy()
+  })
+
+  it('still draws downstream work if it somehow arrives before the check', () => {
+    // Guard against event-ordering anomalies: real activity must never be
+    // hidden behind a flag that has not landed yet.
+    useStore.setState({
+      turns: { A: [turn({ status: 'streaming', question_check: undefined,
+        team_plan: [{ call_id: 'c1', tool: 'modeling', sub_question: 'x' }],
+        agent_runs: [] })] },
+      activeTurnId: { A: 't1' },
+    })
+    render(<FlowStrip caseId="A" />)
+    expect(screen.getByText('Specialists')).toBeTruthy()
   })
 
   it('follows the turn the reviewer selected, not just the newest', () => {

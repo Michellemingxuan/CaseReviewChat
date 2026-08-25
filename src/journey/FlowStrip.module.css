@@ -203,3 +203,20 @@
 .node.error { border-color: rgba(248, 113, 113, 0.45); background: rgba(248, 113, 113, 0.08); }
 
 .empty { margin: 10px 14px; color: #7C8DA6; font-size: 10px; }
+
+/* Why a turn stopped at the screen. A lone `screen` node with nothing after
+   it reads as "still loading"; this says it finished and went no further. */
+.stopped {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 3px 9px;
+  border-radius: var(--j-radius-pill);
+  background: rgba(197, 48, 48, 0.16);
+  border: 1px solid rgba(197, 48, 48, 0.4);
+  color: #F1A0A0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
