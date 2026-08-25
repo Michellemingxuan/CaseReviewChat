@@ -169,7 +169,13 @@ export function useSSE(caseId: string | null) {
           (existing) =>
             existing.role === 'reviewer' &&
             existing.text === m.text &&
-            Math.abs((existing.timestamp ?? 0) - m.timestamp) < 30_000
+            // Only the optimistic bubble this echo is meant to replace.
+            // Restored history now carries real timestamps too (the server
+            // sends them so a reloaded thread isn't a list of undated rows),
+            // and matching one of those would silently drop the echo for a
+            // question legitimately re-asked within the window.
+            !existing.id.startsWith('hist:') &&
+            Math.abs((existing.timestamp ?? 0) - (m.timestamp ?? 0)) < 30_000
         )
         if (recentDup) return
         appendMessage(caseId, m)
