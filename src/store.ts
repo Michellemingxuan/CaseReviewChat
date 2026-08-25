@@ -2,7 +2,26 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AgentRun, CaseList, ChartInfo, Message, PendingChart, SseStatus, StoreState } from './types'
 
-const STORAGE_KEY = 'case-review-threads-v6'
+// Bumped v6 -> v7 when the journey shell shipped. The persisted SHAPE is
+// unchanged, so this is not a migration — it is a deliberate one-time reset.
+//
+// Redeploying left browsers holding turns that were mid-flight against the
+// OLD server process. That process is gone, so no answer can ever arrive, and
+// the rehydrate path below intentionally does not cancel streaming turns (an
+// accidental refresh must not kill live work). The result was questions stuck
+// on "Working on it…" forever, visible only to whoever's browser held them.
+//
+// Bumping is close to lossless: `useCaseHistory` fetches `/history` on case
+// open and `setCaseHistory` replaces the thread with the server's record, so
+// completed turns come straight back. Only never-completed local state — the
+// ghosts — is dropped. The stale-streaming check below stops NEW ones being
+// created, but cannot reach state persisted before it existed.
+const STORAGE_KEY = 'case-review-threads-v7'
+
+/** A turn cannot legitimately still be running after this long: the server's
+ *  own `TURN_WALL_CLOCK_S` budget is 360s, so anything older than that plus a
+ *  margin belongs to a process that is no longer alive. */
+const STALE_STREAMING_MS = 10 * 60 * 1000
 
 export const useStore = create<StoreState>()(
   persist(
@@ -323,17 +342,41 @@ export const useStore = create<StoreState>()(
               })
             }
           }
-          // Do NOT mark a mid-stream turn as interrupted on reload. The server
-          // turn keeps running across an SSE disconnect — ONLY Stop/Rewind
-          // cancels it (server.py sets cancel_in_flight) — and SSE
+          // Do NOT mark a RECENT mid-stream turn as interrupted on reload. The
+          // server turn keeps running across an SSE disconnect — ONLY
+          // Stop/Rewind cancels it (server.py sets cancel_in_flight) — and SSE
           // replay-on-reconnect resumes it when the page reconnects. So an
           // accidental hard-refresh is a no-op: leave streaming turns as-is and
           // let the replayed + live events bring them to 'done' (or a real
-          // server error). Falsely flipping them to "interrupted (session
-          // closed)" here would interrupt work the user didn't mean to stop.
-          // (Edge: if the server itself restarted while away, the turn is gone
-          // and will show 'streaming' until the next question — acceptable and
-          // rare, and far better than interrupting every accidental refresh.)
+          // server error). Falsely flipping them here would interrupt work the
+          // user didn't mean to stop.
+          //
+          // But an OLD one is a different case, and this note used to call it
+          // "acceptable and rare". A redeploy makes it neither: every turn in
+          // flight when the process died is stranded, and because nothing ever
+          // resolves it the question sits on "Working on it…" indefinitely —
+          // in one person's browser and no one else's, which is a confusing
+          // thing to debug. The server's own turn budget (`TURN_WALL_CLOCK_S`,
+          // 360s) bounds how long a live turn can possibly last, so past that
+          // plus a margin the owning process is provably gone. Say so instead
+          // of pretending it is still working.
+          for (const cid of Object.keys(turns ?? {})) {
+            const list = turns[cid]
+            if (!Array.isArray(list)) continue
+            for (const t of list) {
+              if (!t || t.status !== 'streaming') continue
+              const age = Date.now() - (t.started_at ?? 0)
+              // `started_at` is epoch ms from the server. A missing or absurd
+              // value reads as very old; that is the safe direction, since the
+              // alternative is a ghost that never clears.
+              if (age < STALE_STREAMING_MS) continue
+              t.status = 'error'
+              t.errorKind = 'interrupted'
+              t.error = 'Interrupted — the server restarted while this turn '
+                + 'was running. Ask again to retry.'
+              t.outcome = 'aborted'
+            }
+          }
           return parsed
         },
         setItem: (name, value) => {
