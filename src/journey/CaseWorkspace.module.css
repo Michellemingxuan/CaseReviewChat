@@ -108,24 +108,9 @@
 }
 .traceHidden > *:nth-child(5) { grid-column: 4; }
 
-.traceCell { position: relative; }
-/* Sits over the trace panel's own header bar, which has room at its right. */
-.traceFold {
-  position: absolute;
-  top: 8px; right: 10px;
-  z-index: 5;
-  width: 24px; height: 22px;
-  display: grid; place-items: center;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #C7D6EE;
-  font-size: 10px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.traceFold:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
-
+/* The expanded panel renders its own fold control in its header row (see
+   AuditTracePanel's `onCollapse`). An absolutely-positioned one here covered
+   the "next turn" arrow. */
 .traceSpine {
   display: flex;
   flex-direction: column;

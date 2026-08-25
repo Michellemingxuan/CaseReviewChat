@@ -24,7 +24,17 @@ const EMPTY_TURNS: Turn[] = []
  * Streams in real time: each agent's [SPECIALIST ANALYSIS] block appears as
  * its `agent_completed` event lands, not all at once at the end.
  */
-export function AuditTracePanel({ caseId }: { caseId: string | null }) {
+export function AuditTracePanel({ caseId, onCollapse }: {
+  caseId: string | null
+  /** When given, renders a fold control in the header. The journey shell
+   *  passes it; the classic workspace does not and gets no button.
+   *
+   *  It belongs IN the header row rather than overlaid on the panel: an
+   *  absolutely-positioned button at top-right sat exactly on the "next turn"
+   *  arrow and swallowed its clicks, so the trace could only be paged
+   *  backwards. Flex layout cannot collide with itself. */
+  onCollapse?: () => void
+}) {
   const turns = useStore((st) => (caseId ? st.turns[caseId] : undefined)) ?? EMPTY_TURNS
   const activeTurnId = useStore((st) => (caseId ? st.activeTurnId[caseId] : null))
   const setActiveTurn = useStore((st) => st.setActiveTurn)
@@ -56,7 +66,18 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
     return (
       <div className={s.panel}>
         <div className={s.head}>
-          <div className={s.headRow}><h3 className={s.title}>Reasoning Trace</h3></div>
+          <div className={s.headRow}>
+            <h3 className={s.title}>Reasoning Trace</h3>
+            {onCollapse && <button
+              type="button"
+              className={s.foldBtn}
+              onClick={onCollapse}
+              title="Hide the reasoning trace"
+              aria-expanded="true"
+            >
+              &#10093;&#10093;
+            </button>}
+          </div>
         </div>
         <div className={s.empty}><strong>Select a case</strong>The trace will appear once you ask a question.</div>
       </div>
@@ -67,7 +88,18 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
     return (
       <div className={s.panel}>
         <div className={s.head}>
-          <div className={s.headRow}><h3 className={s.title}>Reasoning Trace</h3></div>
+          <div className={s.headRow}>
+            <h3 className={s.title}>Reasoning Trace</h3>
+            {onCollapse && <button
+              type="button"
+              className={s.foldBtn}
+              onClick={onCollapse}
+              title="Hide the reasoning trace"
+              aria-expanded="true"
+            >
+              &#10093;&#10093;
+            </button>}
+          </div>
         </div>
         <div className={s.empty}><strong>No turns yet</strong>Ask a question to see the agentic reasoning unfold.</div>
       </div>
@@ -88,6 +120,15 @@ export function AuditTracePanel({ caseId }: { caseId: string | null }) {
             <span>Turn {idx + 1} of {turns.length}</span>
             <button className={s.turnArrow} onClick={goNext} disabled={idx >= turns.length - 1}>›</button>
           </span>
+          {onCollapse && <button
+              type="button"
+              className={s.foldBtn}
+              onClick={onCollapse}
+              title="Hide the reasoning trace"
+              aria-expanded="true"
+            >
+              &#10093;&#10093;
+            </button>}
         </div>
         <div className={s.headQuestion} title={turn.question}>{turn.question}</div>
       </div>

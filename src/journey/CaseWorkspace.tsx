@@ -142,16 +142,10 @@ export function CaseWorkspace({ caseId, ask, onAsk }: Props) {
 
       {traceOpen ? (
         <div className={`${s.cell} ${s.traceCell}`}>
-          <button
-            type="button"
-            className={s.traceFold}
-            onClick={() => setTraceOpen(false)}
-            title="Hide the reasoning trace"
-            aria-expanded="true"
-          >
-            ⟩⟩
-          </button>
-          <AuditTracePanel caseId={caseId} />
+          {/* The fold control is rendered BY the panel, inside its flex
+              header. Overlaying it here put it on top of the "next turn"
+              arrow and swallowed those clicks. */}
+          <AuditTracePanel caseId={caseId} onCollapse={() => setTraceOpen(false)} />
         </div>
       ) : (
         /* Collapsed to a spine rather than removed outright: a reviewer needs
