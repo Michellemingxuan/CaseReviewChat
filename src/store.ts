@@ -76,9 +76,23 @@ export const useStore = create<StoreState>()(
         const survivingTurnIds = new Set(
           newThread.map((m) => m.turn_id).filter((t): t is string => !!t)
         )
-        const removedTurnIds = allTurns
-          .filter((t) => !survivingTurnIds.has(t.turn_id))
-          .map((t) => t.turn_id)
+        // Turn ids come from the messages being dropped, not from `allTurns`
+        // alone: `state.turns` only holds turns that streamed live in THIS
+        // browser session, and nothing repopulates it from /history. After a
+        // server restart a restored message carries a valid turn_id in the
+        // thread but has no entry here, so deriving ids from the trace array
+        // alone sends the server ids that match no qa_cache entry — the
+        // rewind clears the UI, clears nothing server-side, and the turns
+        // come back on the next restart. The union keeps trace-row cleanup.
+        const removedMessages = revIdx === -1
+          ? thread.slice(clickedIdx)
+          : thread.slice(revIdx)
+        const removedTurnIds = Array.from(new Set([
+          ...removedMessages.map((m) => m.turn_id).filter((t): t is string => !!t),
+          ...allTurns
+            .filter((t) => !survivingTurnIds.has(t.turn_id))
+            .map((t) => t.turn_id),
+        ]))
         const survivingTurns = allTurns.filter(
           (t) => survivingTurnIds.has(t.turn_id)
         )
@@ -121,15 +135,24 @@ export const useStore = create<StoreState>()(
 
       setCaseHistory: (caseId, messages) =>
         set((state) => {
-          // Empty server history (e.g. a case whose latest snapshot predates the
-          // raw-qa_cache column, so /history is empty): keep the client's thread
-          // rather than wiping it.
-          if (messages.length === 0) return {}
           const existing = state.threads[caseId] ?? []
-          // Server history is authoritative for completed turns. Preserve any
-          // local message the server doesn't represent (e.g. an in-flight turn
-          // not yet in the server's qa_cache): match by id, by (turn_id, role),
-          // or by (role, text) for optimistic bubbles that carry no turn_id.
+          // Server history is authoritative for completed turns — INCLUDING
+          // when it is empty. A rewind or clear-history legitimately leaves
+          // nothing, and treating [] as "no information" made those clears
+          // impossible to stick: the thread came back on the next restart,
+          // and a case cleared on one device never cleared on another.
+          //
+          // Only genuinely in-flight local messages survive a server list
+          // that omits them: an optimistic bubble with no turn_id yet, or a
+          // turn still streaming and so not yet in the server's qa_cache.
+          // Anything else the server doesn't list is a completed turn it has
+          // authoritatively dropped, so drop it here too.
+          const streaming = new Set(
+            (state.turns[caseId] ?? [])
+              .filter((t) => t.status === 'streaming')
+              .map((t) => t.turn_id))
+          // Match by id, by (turn_id, role), or by (role, text) for
+          // optimistic bubbles that carry no turn_id.
           const ids = new Set(messages.map((m) => m.id))
           const turnRoles = new Set(
             messages.filter((m) => m.turn_id).map((m) => `${m.turn_id} ${m.role}`))
@@ -137,7 +160,8 @@ export const useStore = create<StoreState>()(
           const extras = existing.filter((m) =>
             !ids.has(m.id) &&
             !(m.turn_id && turnRoles.has(`${m.turn_id} ${m.role}`)) &&
-            !roleTexts.has(`${m.role} ${m.text}`))
+            !roleTexts.has(`${m.role} ${m.text}`) &&
+            (!m.turn_id || streaming.has(m.turn_id)))
           return { threads: { ...state.threads, [caseId]: [...messages, ...extras] } }
         }),
 
