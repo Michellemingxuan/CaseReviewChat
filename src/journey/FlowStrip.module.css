@@ -22,6 +22,15 @@
   background: #0E1828;
   color: #C8D5EE;
   border-top: 1px solid #1F2D48;
+  /* Query container for the scale ladder below. `size` rather than
+     `inline-size` because BOTH axes matter here: the reviewer drags the
+     trace column's width and the trace/flow row splitter's height, and the
+     window can hand this panel a full-width but very short row when the
+     layout stacks. Safe because the strip never sizes to its contents — it
+     is a grid item on a definite track (`minmax(90px, 1fr)` in
+     CaseWorkspace) and already clips with `overflow: hidden`. */
+  container-type: size;
+  container-name: orchflow;
 }
 
 .head {
@@ -52,11 +61,61 @@
 .badgeLive { background: rgba(34, 197, 94, 0.16); color: #6EE7A8; }
 .badge { margin-right: auto; }
 
+/* ── responsive scale ────────────────────────────────────────────────
+   The strip is a resizable panel, not a fixed slot: its width follows the
+   trace column and its height follows the row splitter, and the stacked
+   layout below 1250px hands it a full-width row instead of a narrow one.
+   A single fixed type scale cannot serve that range — at ~320px the nodes
+   clipped, and in a 900px-wide stacked row the whole diagram sat tiny in a
+   sea of empty space.
+
+   `--f-scale` is the ONE knob; every size below derives from it, so the
+   ladder cannot drift out of proportion the way a dozen hand-tuned
+   breakpoint values would.
+
+   The two axes are kept as separate variables and combined with `min()`
+   rather than layered by cascade order. Width proposes a scale, height caps
+   it, and `min()` makes that order-independent — a strip dragged short stays
+   compact however wide it is, which matters because the fork is the tallest
+   thing here and losing it defeats the diagram. Chaining `max-height` rules
+   to overwrite a width tier would have made the result depend on rule order,
+   which is exactly the kind of thing that breaks silently on the next edit. */
+.flow {
+  --f-w: 1;      /* proposed by width  */
+  --f-h: 1.4;    /* ceiling from height — generous, so width usually wins */
+  --f-scale: min(var(--f-w), var(--f-h));
+  --f-branch-min: 126px;
+
+  --f-fs: calc(9.5px * var(--f-scale));
+  --f-fs-sm: calc(9px * var(--f-scale));
+  --f-fs-label: calc(8.5px * var(--f-scale));
+  --f-pad-y: calc(6px * var(--f-scale));
+  --f-pad-x: calc(9px * var(--f-scale));
+  --f-gap: calc(5px * var(--f-scale));
+  --f-radius: calc(8px * var(--f-scale));
+  --f-dot: calc(6px * var(--f-scale));
+}
+
+/* Width ladder. The floor is set by the trace column's own 320px minimum,
+   the ceiling by the stacked layout where this becomes a full-width row. */
+@container orchflow (max-width: 360px) { .flow { --f-w: 0.88; --f-branch-min: 104px; } }
+@container orchflow (min-width: 520px) { .flow { --f-w: 1.10; --f-branch-min: 148px; } }
+@container orchflow (min-width: 720px) { .flow { --f-w: 1.22; --f-branch-min: 168px; } }
+@container orchflow (min-width: 980px) { .flow { --f-w: 1.34; --f-branch-min: 190px; } }
+
+/* Height ceiling. 90px is the row's floor in CaseWorkspace, so the bottom
+   rung is what a fully-collapsed strip gets. */
+@container orchflow (max-height: 150px) { .flow { --f-h: 1.00; } }
+@container orchflow (max-height: 120px) { .flow { --f-h: 0.90; } }
+@container orchflow (max-height: 100px) { .flow { --f-h: 0.82; } }
+/* Dragged tall: let the diagram use the room rather than float in it. */
+@container orchflow (min-height: 240px) { .flow { --f-h: 1.5; } }
+
 /* Left-to-right, like the classic panel, with the fork stacked: report above,
    team below. That is the arrangement the classic uses, and it is the one that
    fits here — the flow grows sideways as the turn progresses (which scrolls)
    while staying short enough to read in a third of a column.
-   
+
    The earlier vertical version was worse in practice: stacking every stage
    downwards meant only `screen` and `plan` were ever visible without
    scrolling, so the shape — the whole reason to draw a flow — was hidden. */
@@ -66,11 +125,10 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 5px;
-  padding: 10px 14px;
+  gap: var(--f-gap);
+  padding: calc(10px * var(--f-scale)) calc(14px * var(--f-scale));
   overflow-x: auto;
   overflow-y: hidden;
-  align-items: center;
 }
 
 /* Stage and branch colours are the trace panel's own phase palette, lifted
@@ -82,13 +140,13 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 9px;
-  border-radius: 8px;
+  gap: calc(6px * var(--f-scale));
+  padding: var(--f-pad-y) var(--f-pad-x);
+  border-radius: var(--f-radius);
   background: #17212F;
   border: 1px solid #2E3B54;
   font-family: var(--j-font-mono);
-  font-size: 9.5px;
+  font-size: var(--f-fs);
   font-weight: 600;
   color: #C7D6EE;
   white-space: nowrap;
@@ -106,11 +164,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: calc(2px * var(--f-scale));
 }
-.arrowDown { color: #46587A; font-size: 10px; line-height: 1; }
+.arrowDown { color: #46587A; font-size: calc(10px * var(--f-scale)); line-height: 1; }
 
-.arrow { flex-shrink: 0; color: #46587A; font-size: 11px; line-height: 1; }
+.arrow { flex-shrink: 0; color: #46587A; font-size: calc(11px * var(--f-scale)); line-height: 1; }
 
 /* Stacked, so the two branches read as simultaneous rather than sequential. */
 /* Bounded to the strip so the fork itself never scrolls out of view; a long
@@ -120,17 +178,17 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(6px * var(--f-scale));
   max-height: 100%;
   min-height: 0;
 }
 .branch {
-  min-width: 126px;
+  min-width: var(--f-branch-min);
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 0 8px 6px;
-  border-radius: 8px;
+  gap: calc(3px * var(--f-scale));
+  padding: 0 calc(8px * var(--f-scale)) calc(6px * var(--f-scale));
+  border-radius: var(--f-radius);
   background: #131E30;
   border: 1px solid #24324B;
   min-height: 0;
@@ -145,7 +203,12 @@
    and scrolls. Letting both shrink equally squeezed Report down to its label
    while Specialists still overflowed. */
 .report { border-left-color: #5FCFCF; background: #102332; flex: 0 0 auto; }
-.specialists { border-left-color: #79BDFF; background: #0D2139; flex: 1 1 auto; min-height: 46px; }
+.specialists {
+  border-left-color: #79BDFF;
+  background: #0D2139;
+  flex: 1 1 auto;
+  min-height: calc(46px * var(--f-scale));
+}
 
 /* Sticky, so scrolling a long branch never leaves you looking at an
    unlabelled list of agent names. */
@@ -153,11 +216,11 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 6px 0 3px;
+  padding: calc(6px * var(--f-scale)) 0 calc(3px * var(--f-scale));
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 8.5px;
+  gap: calc(6px * var(--f-scale));
+  font-size: var(--f-fs-label);
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -169,9 +232,9 @@
 .node {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 7px;
-  border-radius: 5px;
+  gap: calc(6px * var(--f-scale));
+  padding: calc(3px * var(--f-scale)) calc(7px * var(--f-scale));
+  border-radius: calc(5px * var(--f-scale));
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid transparent;
 }
@@ -179,7 +242,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--j-font-mono);
-  font-size: 9.5px;
+  font-size: var(--f-fs);
   color: #D5E2F6;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -188,12 +251,23 @@
 .nodeTime {
   flex-shrink: 0;
   font-family: var(--j-font-mono);
-  font-size: 9px;
+  font-size: var(--f-fs-sm);
   color: #8296B5;
 }
-.placeholder { font-size: 9px; color: #56688A; font-style: italic; padding: 2px 7px; }
+.placeholder {
+  font-size: var(--f-fs-sm);
+  color: #56688A;
+  font-style: italic;
+  padding: calc(2px * var(--f-scale)) calc(7px * var(--f-scale));
+}
 
-.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: #46587A; }
+.dot {
+  width: var(--f-dot);
+  height: var(--f-dot);
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #46587A;
+}
 .done .dot, .dot.done { background: #4ADE80; }
 .error .dot, .dot.error { background: #F87171; }
 /* Pulsing so a stalled turn stays visibly alive rather than looking finished. */
@@ -209,12 +283,12 @@
 .stopped {
   flex-shrink: 0;
   align-self: center;
-  padding: 3px 9px;
+  padding: calc(3px * var(--f-scale)) calc(9px * var(--f-scale));
   border-radius: var(--j-radius-pill);
   background: rgba(197, 48, 48, 0.16);
   border: 1px solid rgba(197, 48, 48, 0.4);
   color: #F1A0A0;
-  font-size: 9px;
+  font-size: var(--f-fs-sm);
   font-weight: 700;
   letter-spacing: 0.3px;
   text-transform: uppercase;
