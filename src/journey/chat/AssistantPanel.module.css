@@ -31,10 +31,46 @@
 .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 .subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 10px 16px 6px;
   font-size: var(--j-fs-micro);
   color: var(--j-ink-mute);
   flex-shrink: 0;
+}
+
+/* Clear — deliberately understated. It destroys the case's conversation on
+   the server as well as here, so it should be findable, not prominent. */
+.clearLink {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--j-accent);
+  font-family: inherit;
+  font-size: var(--j-fs-micro);
+  font-weight: 600;
+  cursor: pointer;
+}
+.clearLink:hover { text-decoration: underline; }
+
+.confirmRow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.confirmText { color: var(--j-ink-3); }
+.confirmYes, .confirmNo {
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: var(--j-fs-micro);
+  font-weight: 700;
+  cursor: pointer;
+}
+.confirmYes { background: var(--j-danger); border: 1px solid var(--j-danger); color: #fff; }
+.confirmNo {
+  background: var(--j-surface);
+  border: 1px solid var(--j-border-strong);
+  color: var(--j-ink-3);
 }
 
 /* ── turns ──────────────────────────────────────────────────────────── */

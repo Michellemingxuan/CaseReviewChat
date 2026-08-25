@@ -4,6 +4,7 @@ import { useSSE } from '../../hooks/useSSE'
 import { useCaseHistory } from '../../hooks/useCaseHistory'
 import { postMessage, postRewind, postCancelTurn } from '../../api'
 import { usePins } from '../usePins'
+import { clearCaseHistory } from '../../lib/caseHistory'
 import { TurnCard } from './TurnCard'
 import { buildTurnViews, type TurnView } from './turns'
 import s from './AssistantPanel.module.css'
@@ -45,6 +46,9 @@ export function AssistantPanel({ caseId, ask }: {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [openTurn, setOpenTurn] = useState<number | null>(null)
+  // Two-step confirm. Clearing wipes the server's qa_cache as well as the
+  // local thread and cannot be undone, so it should not be one stray click.
+  const [confirmClear, setConfirmClear] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -66,7 +70,7 @@ export function AssistantPanel({ caseId, ask }: {
   const lastIndex = views.length > 0 ? views[views.length - 1].index : null
   const effectiveOpen = openTurn ?? lastIndex
 
-  useEffect(() => { setOpenTurn(null) }, [caseId])
+  useEffect(() => { setOpenTurn(null); setConfirmClear(false) }, [caseId])
 
   // A question handed over from the report. Put it in the box rather than
   // sending it: the reviewer should see and be able to edit what will be
@@ -178,7 +182,39 @@ export function AssistantPanel({ caseId, ask }: {
         </span>
       </div>
       <div className={s.subhead}>
-        Session · {caseId} · {views.length} turn{views.length === 1 ? '' : 's'}
+        <span>
+          Session · {caseId} · {views.length} turn{views.length === 1 ? '' : 's'}
+        </span>
+        {views.length > 0 && (
+          confirmClear ? (
+            <span className={s.confirmRow}>
+              <span className={s.confirmText}>Clear this case?</span>
+              <button
+                type="button"
+                className={s.confirmYes}
+                onClick={async () => {
+                  setConfirmClear(false)
+                  await clearCaseHistory(caseId)
+                }}
+              >
+                Clear
+              </button>
+              <button type="button" className={s.confirmNo}
+                      onClick={() => setConfirmClear(false)}>
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={s.clearLink}
+              onClick={() => setConfirmClear(true)}
+              title="Delete this case's conversation, here and on the server"
+            >
+              Clear
+            </button>
+          )
+        )}
       </div>
 
       <div className={s.turns}>
