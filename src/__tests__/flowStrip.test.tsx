@@ -53,7 +53,8 @@ describe('FlowStrip', () => {
 
     expect(screen.getByText('spend_payments')).toBeTruthy()
     expect(screen.getByText('4.9s')).toBeTruthy()
-    expect(screen.getByText('1/2 agents')).toBeTruthy()
+    // The header no longer carries an agent count; the branch labels do.
+    expect(screen.getByText('2')).toBeTruthy()   // Team branch count
   })
 
   it('omits sub-questions — that is the whole point of this strip', () => {

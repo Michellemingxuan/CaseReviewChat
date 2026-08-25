@@ -82,25 +82,22 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
               turn were an agent. */}
           {streaming ? 'in progress' : turn.status}
         </span>
-        <span className={s.count}>
-          {runs.filter((r) => r.payload !== undefined).length}/{calls.length || '—'} agents
-        </span>
       </div>
 
       <div className={s.flow}>
         <div className={`${s.stage} ${s[screened] ?? ''}`}>
           <span className={`${s.dot} ${s[screened] ?? ''}`} />screen
         </div>
-        <span className={s.arrow}>↓</span>
+        <span className={s.arrow}>→</span>
         <div className={`${s.stage} ${s[planned] ?? ''}`}>
           <span className={`${s.dot} ${s[planned] ?? ''}`} />plan
         </div>
-        <span className={s.arrow}>↓</span>
+        <span className={s.arrow}>→</span>
 
         {/* The fork. Two branches side by side, which is what shows that they
             ran in parallel rather than in sequence. */}
         <div className={s.branches}>
-          <div className={s.branch}>
+          <div className={`${s.branch} ${s.report}`}>
             <div className={s.branchLabel}>
               Report <span className={s.branchCount}>{reportCalls.length || 'idle'}</span>
             </div>
@@ -108,7 +105,7 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
               ? <div className={s.placeholder}>not dispatched</div>
               : reportCalls.map(node)}
           </div>
-          <div className={s.branch}>
+          <div className={`${s.branch} ${s.team}`}>
             <div className={s.branchLabel}>
               Team <span className={s.branchCount}>{teamCalls.length || 'idle'}</span>
             </div>
@@ -118,7 +115,7 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
           </div>
         </div>
 
-        <span className={s.arrow}>↓</span>
+        <span className={s.arrow}>→</span>
         <div className={`${s.stage} ${s[synth] ?? ''}`}>
           <span className={`${s.dot} ${s[synth] ?? ''}`} />synthesis
         </div>

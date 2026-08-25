@@ -1,5 +1,19 @@
 /* Dark, sharing the trace's palette, so the two read as one panel split in
    two rather than two panels stacked. */
+/* The flow grows sideways as the turn progresses and will outrun the column.
+   A scrollbar alone is easy to miss on a dark ground, so the right edge fades
+   — the standard signal that there is more to see. */
+.strip { position: relative; }
+.strip::after {
+  content: '';
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 26px;
+  height: calc(100% - 34px);
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(14, 24, 40, 0), #0E1828);
+}
+
 .strip {
   display: flex;
   flex-direction: column;
@@ -36,70 +50,71 @@
   text-transform: uppercase;
 }
 .badgeLive { background: rgba(34, 197, 94, 0.16); color: #6EE7A8; }
-.count {
-  margin-left: auto;
-  font-family: var(--j-font-mono);
-  font-size: 9.5px;
-  color: #7C8DA6;
-}
+.badge { margin-right: auto; }
 
-/* Top-to-bottom, with the two branches side by side inside it.
-   The classic panel flows left-to-right, but this column is ~360px and a
-   horizontal flow simply does not fit — it scrolled sideways, so you could
-   never see the whole shape at once, which is the only reason to draw a flow
-   rather than a list. Vertical keeps the sequence readable AND keeps the fork
-   genuinely parallel: Report and Team sit next to each other. */
+/* Left-to-right, like the classic panel, with the fork stacked: report above,
+   team below. That is the arrangement the classic uses, and it is the one that
+   fits here — the flow grows sideways as the turn progresses (which scrolls)
+   while staying short enough to read in a third of a column.
+   
+   The earlier vertical version was worse in practice: stacking every stage
+   downwards meant only `screen` and `plan` were ever visible without
+   scrolling, so the shape — the whole reason to draw a flow — was hidden. */
 .flow {
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 3px;
-  padding: 8px 14px 10px;
-  overflow-y: auto;
+  gap: 5px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .stage {
   flex-shrink: 0;
-  align-self: center;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 7px;
-  background: #17212F;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #1B2942, #141F33);
   border: 1px solid #2E3B54;
   font-family: var(--j-font-mono);
   font-size: 9.5px;
-  color: #A9BCD8;
+  color: #C7D6EE;
   white-space: nowrap;
 }
-.arrow {
-  flex-shrink: 0;
-  color: #46587A;
-  font-size: 10px;
-  line-height: 1;
-}
+.stage.done { border-color: #2F5E4A; }
+.stage.running { border-color: #2B6288; }
+.stage.error { border-color: #7F3535; }
 
+.arrow { flex-shrink: 0; color: #46587A; font-size: 11px; line-height: 1; }
+
+/* Stacked, so the two branches read as simultaneous rather than sequential. */
 .branches {
   flex-shrink: 0;
-  align-self: stretch;
-  display: flex;
-  gap: 8px;
-  min-width: 0;
-}
-.branch {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+.branch {
+  min-width: 126px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   padding: 6px 8px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #131E30;
   border: 1px solid #24324B;
+  /* The accent bar is the branch's identity — same teal/indigo split the
+     classic panel uses for its fork arms, lifted for a dark ground. */
+  border-left-width: 3px;
 }
+.report { border-left-color: #2DD4BF; }
+.team { border-left-color: #818CF8; }
+
 .branchLabel {
   display: flex;
   align-items: baseline;
@@ -108,24 +123,26 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #7C8DA6;
 }
+.report .branchLabel { color: #5EEAD4; }
+.team .branchLabel { color: #A5B4FC; }
 .branchCount { margin-left: auto; font-family: var(--j-font-mono); color: #5A6C8C; }
 
 .node {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 6px;
+  padding: 3px 7px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
 }
 .nodeName {
   flex: 1;
   min-width: 0;
   font-family: var(--j-font-mono);
   font-size: 9.5px;
-  color: #C7D6EE;
+  color: #D5E2F6;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,9 +151,9 @@
   flex-shrink: 0;
   font-family: var(--j-font-mono);
   font-size: 9px;
-  color: #7C8DA6;
+  color: #8296B5;
 }
-.placeholder { font-size: 9px; color: #56688A; font-style: italic; padding: 2px 6px; }
+.placeholder { font-size: 9px; color: #56688A; font-style: italic; padding: 2px 7px; }
 
 .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: #46587A; }
 .done .dot, .dot.done { background: #4ADE80; }
@@ -145,6 +162,6 @@
 .running .dot, .dot.running { background: #5FB6EE; animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
 
-.error { border-color: rgba(248, 113, 113, 0.4); }
+.node.error { border-color: rgba(248, 113, 113, 0.45); background: rgba(248, 113, 113, 0.08); }
 
 .empty { margin: 10px 14px; color: #7C8DA6; font-size: 10px; }
