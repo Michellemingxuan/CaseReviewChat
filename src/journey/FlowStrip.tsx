@@ -1,19 +1,27 @@
 import { useMemo } from 'react'
 import { useStore } from '../store'
-import type { AgentRun, Turn } from '../types'
+import { runStatus } from '../components/OrchestrationFlowPanel/OrchestrationFlowPanel'
+import type { AgentRun, ToolCall, Turn } from '../types'
 import s from './FlowStrip.module.css'
 
 const EMPTY: Turn[] = []
 
 /**
- * Live orchestration for the turn being viewed — who was dispatched, who has
- * finished, how long each took.
+ * The orchestration flow, in the dark strip under the reasoning trace.
  *
- * Deliberately NOT the classic OrchestrationFlowPanel. That renders each
- * agent's sub-question in full, which is the single densest text in the app
- * and unreadable in a third of a column. This answers only "what is running
- * right now, and what came back" — the shape of the turn, not its content.
- * The sub-questions are still one click away in the trace above.
+ * Same grammar as the classic OrchestrationFlowPanel — screen → orchestrator →
+ * fork → {report branch, team branch} → join → synthesis — because that shape
+ * is what makes a turn legible: you can see at a glance that two things ran in
+ * parallel and rejoined. A flat list loses exactly that.
+ *
+ * What it drops is the per-node sub-question. Those are the densest text in
+ * the app and cannot be read in a third of a column; the trace directly above
+ * carries them in full. This strip answers "what is the shape of this turn and
+ * where is it now", not "what was each agent asked".
+ *
+ * `runStatus` is imported from the classic panel rather than reimplemented:
+ * it encodes which recoverable errors count as failure, and two copies would
+ * drift.
  */
 export function FlowStrip({ caseId }: { caseId: string | null }) {
   const turns = useStore((st) => (caseId ? st.turns[caseId] : undefined)) ?? EMPTY
@@ -33,51 +41,87 @@ export function FlowStrip({ caseId }: { caseId: string | null }) {
     )
   }
 
+  const calls: ToolCall[] = turn.team_plan ?? []
   const runs: AgentRun[] = turn.agent_runs ?? []
-  const done = runs.filter((r) => r.payload !== undefined).length
+  const runFor = (c: ToolCall) => runs.find((r) => r.call_id === c.call_id)
+
+  const reportCalls = calls.filter((c) => c.tool === 'report_agent')
+  const teamCalls = calls.filter((c) => c.tool !== 'report_agent')
+
   const streaming = turn.status === 'streaming'
+  const screened = turn.question_check ? 'done' : streaming ? 'running' : 'idle'
+  const planned = calls.length > 0 ? 'done' : streaming ? 'running' : 'idle'
+  const synth = turn.final ? 'done'
+    : turn.status === 'error' ? 'error'
+    : streaming ? 'running' : 'idle'
+
+  const node = (c: ToolCall) => {
+    const run = runFor(c)
+    const st = runStatus(run, turn.status, turn.errorsBySpecialist?.[c.tool])
+    return (
+      <div key={c.call_id} className={`${s.node} ${s[st] ?? ''}`}
+           title={turn.errorsBySpecialist?.[c.tool] || c.tool}>
+        <span className={`${s.dot} ${s[st] ?? ''}`} />
+        <span className={s.nodeName}>{c.tool}</span>
+        <span className={s.nodeTime}>
+          {st === 'error' ? 'failed'
+            : run?.duration_ms != null ? `${(run.duration_ms / 1000).toFixed(1)}s`
+            : st === 'running' ? '…' : ''}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className={s.strip}>
       <div className={s.head}>
         <span className={s.title}>Orchestration</span>
         <span className={`${s.badge} ${streaming ? s.badgeLive : ''}`}>
-          {/* "in progress", not "running": the rows below say "running" about
-              individual agents, and the same word describing both the turn
-              and an agent inside it reads as though one were the other. */}
+          {/* "in progress", not "running": the nodes below say "running" about
+              individual agents, and one word for both reads as though the
+              turn were an agent. */}
           {streaming ? 'in progress' : turn.status}
         </span>
         <span className={s.count}>
-          {done}/{runs.length || '—'} agents
+          {runs.filter((r) => r.payload !== undefined).length}/{calls.length || '—'} agents
         </span>
       </div>
 
-      <div className={s.list}>
-        {runs.length === 0 && (
-          <p className={s.empty}>
-            {streaming ? 'Constructing the team…' : 'No agents ran on this turn.'}
-          </p>
-        )}
-        {runs.map((r) => {
-          const finished = r.payload !== undefined
-          const err = turn.errorsBySpecialist?.[r.tool]
-          return (
-            <div key={r.call_id} className={s.row}>
-              <span className={[
-                s.dot,
-                err ? s.dotError : finished ? s.dotDone : s.dotRunning,
-              ].join(' ')} />
-              <span className={s.tool} title={r.tool}>{r.tool}</span>
-              <span className={s.timing}>
-                {err
-                  ? 'failed'
-                  : finished
-                    ? (r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(1)}s` : 'done')
-                    : 'running'}
-              </span>
+      <div className={s.flow}>
+        <div className={`${s.stage} ${s[screened] ?? ''}`}>
+          <span className={`${s.dot} ${s[screened] ?? ''}`} />screen
+        </div>
+        <span className={s.arrow}>↓</span>
+        <div className={`${s.stage} ${s[planned] ?? ''}`}>
+          <span className={`${s.dot} ${s[planned] ?? ''}`} />plan
+        </div>
+        <span className={s.arrow}>↓</span>
+
+        {/* The fork. Two branches side by side, which is what shows that they
+            ran in parallel rather than in sequence. */}
+        <div className={s.branches}>
+          <div className={s.branch}>
+            <div className={s.branchLabel}>
+              Report <span className={s.branchCount}>{reportCalls.length || 'idle'}</span>
             </div>
-          )
-        })}
+            {reportCalls.length === 0
+              ? <div className={s.placeholder}>not dispatched</div>
+              : reportCalls.map(node)}
+          </div>
+          <div className={s.branch}>
+            <div className={s.branchLabel}>
+              Team <span className={s.branchCount}>{teamCalls.length || 'idle'}</span>
+            </div>
+            {teamCalls.length === 0
+              ? <div className={s.placeholder}>not dispatched</div>
+              : teamCalls.map(node)}
+          </div>
+        </div>
+
+        <span className={s.arrow}>↓</span>
+        <div className={`${s.stage} ${s[synth] ?? ''}`}>
+          <span className={`${s.dot} ${s[synth] ?? ''}`} />synthesis
+        </div>
       </div>
     </div>
   )
