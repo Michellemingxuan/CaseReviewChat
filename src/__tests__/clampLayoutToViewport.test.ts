@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { clampLayoutToViewport } from '../components/Workspace/Workspace'
+import { clampLayoutTogether } from '../lib/resizer'
 
 describe('clampLayoutToViewport', () => {
   it('keeps values that fall inside the safe range', () => {
@@ -80,5 +81,44 @@ describe('clampLayoutToViewport', () => {
   it('handles an empty layout gracefully', () => {
     const out = clampLayoutToViewport({}, { vw: 1920, vh: 1080 })
     expect(out).toEqual({})
+  })
+})
+
+describe('clampLayoutTogether', () => {
+  it('keeps columns that fit side by side', () => {
+    const out = clampLayoutTogether(
+      { '--a': '400px', '--b': '600px' }, ['--a', '--b'], 8 + 320, 1920)
+    expect(out['--a']).toBe('400px')
+    expect(out['--b']).toBe('600px')
+  })
+
+  it('drops a column when two individually-legal widths cannot coexist', () => {
+    // The real regression: report 492 and chat 751 each pass their own
+    // percentage ceiling at 1280 wide, but together with the gutters and the
+    // trace column's 320px floor they come to 1571 — so the trace was pushed
+    // off screen entirely.
+    const out = clampLayoutTogether(
+      { '--j-col-report': '492px', '--j-col-chat': '751px' },
+      ['--j-col-report', '--j-col-chat'], 8 + 320, 1280)
+
+    expect(out['--j-col-chat']).toBeUndefined()   // the larger one goes first
+    expect(out['--j-col-report']).toBe('492px')   // the smaller one still fits
+  })
+
+  it('drops repeatedly until what remains fits', () => {
+    const out = clampLayoutTogether(
+      { '--a': '900px', '--b': '800px' }, ['--a', '--b'], 8 + 320, 1000)
+    expect(out['--a']).toBeUndefined()
+    expect(out['--b']).toBeUndefined()
+  })
+
+  it('ignores non-pixel values rather than guessing their width', () => {
+    const out = clampLayoutTogether(
+      { '--a': '1.35fr' }, ['--a'], 8 + 320, 400)
+    expect(out['--a']).toBe('1.35fr')
+  })
+
+  it('is a no-op when nothing is stored', () => {
+    expect(clampLayoutTogether({}, ['--a'], 328, 1280)).toEqual({})
   })
 })

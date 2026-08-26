@@ -1,0 +1,211 @@
+.turn { display: flex; flex-direction: column; gap: 6px; }
+
+/* ── question row ───────────────────────────────────────────────────── */
+.qRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #EBF4FB;
+  border: 1px solid #D3E6F4;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.qRow:hover { border-color: var(--j-accent-line); }
+.qRowOpen { background: #E4F0FA; }
+
+.turnNo {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--j-ink-4);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+.question {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--j-fs-sm);
+  color: var(--j-ink-2);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qRowOpen .question { white-space: normal; }
+.time { font-size: var(--j-fs-micro); color: var(--j-ink-mute); flex-shrink: 0; }
+.chevron { color: var(--j-ink-mute); font-size: 12px; flex-shrink: 0; }
+
+/* ── answer card ────────────────────────────────────────────────────── */
+.card {
+  background: var(--j-surface);
+  border: 1px solid #D6E7F4;
+  border-radius: var(--j-radius-card);
+  box-shadow: var(--j-shadow-card);
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  gap: 18px;
+  padding: 10px 16px 0;
+  border-bottom: 1px solid var(--j-border-soft);
+}
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 8px;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: var(--j-fs-body);
+  font-weight: 600;
+  color: var(--j-ink-mute);
+  cursor: pointer;
+}
+.tab:disabled { opacity: 0.45; cursor: not-allowed; }
+.tabActive { color: var(--j-accent-deep); }
+.tabActive::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2.5px;
+  border-radius: 1.25px;
+  background: var(--j-accent);
+}
+.badge {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 7px;
+  background: var(--j-accent-soft);
+  color: var(--j-accent-deep);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+}
+.tab:not(.tabActive) .badge { background: #EEF2F7; color: var(--j-ink-4); }
+
+.body { padding: 14px 16px; }
+
+.answer { font-size: var(--j-fs-sm); color: var(--j-ink-2); line-height: 1.6; }
+.answer :global(p) { margin: 6px 0; }
+.answer :global(ul), .answer :global(ol) { margin: 6px 0; padding-left: 18px; }
+.answer :global(li) { margin: 4px 0; }
+.answer :global(li::marker) { color: var(--j-accent); }
+.answer :global(strong) { color: var(--j-ink); font-weight: 600; }
+.answer :global(code) {
+  font-family: var(--j-font-mono);
+  font-size: var(--j-fs-micro);
+  background: var(--j-chip);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.answer :global(img) { max-width: 100%; height: auto; }
+
+.thinking { color: var(--j-ink-4); font-size: var(--j-fs-sm); font-style: italic; }
+.error { color: var(--j-danger); font-size: var(--j-fs-sm); }
+
+/* ── actions ────────────────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 14px;
+  flex-wrap: wrap;
+}
+.pinBtn, .ghostBtn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: var(--j-fs-meta);
+  font-weight: 600;
+  cursor: pointer;
+}
+/* Pin actions are amber in the design — they mark "this becomes a
+   deliverable", distinct from the neutral utility actions beside them. */
+.pinBtn {
+  background: #FFF8EC;
+  border: 1px solid #F3D9A6;
+  color: var(--j-warn-accent);
+}
+.pinBtn:not(:disabled):hover { border-color: var(--j-warn-accent); }
+.ghostBtn {
+  background: var(--j-surface-soft);
+  border: 1px solid var(--j-border);
+  color: var(--j-ink-3);
+}
+.ghostBtn:hover { border-color: var(--j-ink-mute); }
+.pinBtn:disabled, .ghostBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── tables inside an answer ────────────────────────────────────────── */
+/* Answers carry wide comparison tables and this is the narrow column, so
+   the table scrolls inside its own box rather than being clipped by the
+   card. `max-content` keeps columns at their natural width — `100%` squeezed
+   dates into three-line stacks. */
+.tableScroll {
+  overflow-x: auto;
+  margin: 10px 0;
+  border: 1px solid var(--j-border);
+  border-radius: 6px;
+}
+.answer :global(table) {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-size: var(--j-fs-meta);
+}
+.answer :global(thead th) {
+  background: var(--j-surface-head);
+  color: var(--j-ink-2);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--j-border);
+}
+.answer :global(th), .answer :global(td) {
+  padding: 6px 10px;
+  vertical-align: top;
+  white-space: nowrap;
+  border-right: 1px solid var(--j-border-soft);
+}
+.answer :global(th:last-child), .answer :global(td:last-child) { border-right: 0; }
+.answer :global(tbody tr:nth-child(even)) { background: var(--j-surface-soft); }
+.answer :global(tbody tr + tr td) { border-top: 1px solid var(--j-border-soft); }
+
+/* ── selection preview ──────────────────────────────────────────────── */
+/* Shows exactly what "Pin selection" will store, so the reviewer is never
+   guessing whether their highlight or the whole answer is about to be
+   pinned. */
+.selectionNote {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 16px 10px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #FFF8EC;
+  border: 1px solid #F3D9A6;
+}
+.selectionLabel {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--j-warn-accent);
+}
+.selectionText {
+  font-size: var(--j-fs-micro);
+  color: var(--j-ink-2);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pinBtnArmed { background: #FDF0D5; border-color: var(--j-warn-accent); }

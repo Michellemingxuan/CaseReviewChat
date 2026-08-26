@@ -2,7 +2,26 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AgentRun, CaseList, ChartInfo, Message, PendingChart, SseStatus, StoreState } from './types'
 
-const STORAGE_KEY = 'case-review-threads-v6'
+// Bumped v6 -> v7 when the journey shell shipped. The persisted SHAPE is
+// unchanged, so this is not a migration — it is a deliberate one-time reset.
+//
+// Redeploying left browsers holding turns that were mid-flight against the
+// OLD server process. That process is gone, so no answer can ever arrive, and
+// the rehydrate path below intentionally does not cancel streaming turns (an
+// accidental refresh must not kill live work). The result was questions stuck
+// on "Working on it…" forever, visible only to whoever's browser held them.
+//
+// Bumping is close to lossless: `useCaseHistory` fetches `/history` on case
+// open and `setCaseHistory` replaces the thread with the server's record, so
+// completed turns come straight back. Only never-completed local state — the
+// ghosts — is dropped. The stale-streaming check below stops NEW ones being
+// created, but cannot reach state persisted before it existed.
+const STORAGE_KEY = 'case-review-threads-v7'
+
+/** A turn cannot legitimately still be running after this long: the server's
+ *  own `TURN_WALL_CLOCK_S` budget is 360s, so anything older than that plus a
+ *  margin belongs to a process that is no longer alive. */
+const STALE_STREAMING_MS = 10 * 60 * 1000
 
 export const useStore = create<StoreState>()(
   persist(
@@ -76,9 +95,23 @@ export const useStore = create<StoreState>()(
         const survivingTurnIds = new Set(
           newThread.map((m) => m.turn_id).filter((t): t is string => !!t)
         )
-        const removedTurnIds = allTurns
-          .filter((t) => !survivingTurnIds.has(t.turn_id))
-          .map((t) => t.turn_id)
+        // Turn ids come from the messages being dropped, not from `allTurns`
+        // alone: `state.turns` only holds turns that streamed live in THIS
+        // browser session, and nothing repopulates it from /history. After a
+        // server restart a restored message carries a valid turn_id in the
+        // thread but has no entry here, so deriving ids from the trace array
+        // alone sends the server ids that match no qa_cache entry — the
+        // rewind clears the UI, clears nothing server-side, and the turns
+        // come back on the next restart. The union keeps trace-row cleanup.
+        const removedMessages = revIdx === -1
+          ? thread.slice(clickedIdx)
+          : thread.slice(revIdx)
+        const removedTurnIds = Array.from(new Set([
+          ...removedMessages.map((m) => m.turn_id).filter((t): t is string => !!t),
+          ...allTurns
+            .filter((t) => !survivingTurnIds.has(t.turn_id))
+            .map((t) => t.turn_id),
+        ]))
         const survivingTurns = allTurns.filter(
           (t) => survivingTurnIds.has(t.turn_id)
         )
@@ -121,15 +154,24 @@ export const useStore = create<StoreState>()(
 
       setCaseHistory: (caseId, messages) =>
         set((state) => {
-          // Empty server history (e.g. a case whose latest snapshot predates the
-          // raw-qa_cache column, so /history is empty): keep the client's thread
-          // rather than wiping it.
-          if (messages.length === 0) return {}
           const existing = state.threads[caseId] ?? []
-          // Server history is authoritative for completed turns. Preserve any
-          // local message the server doesn't represent (e.g. an in-flight turn
-          // not yet in the server's qa_cache): match by id, by (turn_id, role),
-          // or by (role, text) for optimistic bubbles that carry no turn_id.
+          // Server history is authoritative for completed turns — INCLUDING
+          // when it is empty. A rewind or clear-history legitimately leaves
+          // nothing, and treating [] as "no information" made those clears
+          // impossible to stick: the thread came back on the next restart,
+          // and a case cleared on one device never cleared on another.
+          //
+          // Only genuinely in-flight local messages survive a server list
+          // that omits them: an optimistic bubble with no turn_id yet, or a
+          // turn still streaming and so not yet in the server's qa_cache.
+          // Anything else the server doesn't list is a completed turn it has
+          // authoritatively dropped, so drop it here too.
+          const streaming = new Set(
+            (state.turns[caseId] ?? [])
+              .filter((t) => t.status === 'streaming')
+              .map((t) => t.turn_id))
+          // Match by id, by (turn_id, role), or by (role, text) for
+          // optimistic bubbles that carry no turn_id.
           const ids = new Set(messages.map((m) => m.id))
           const turnRoles = new Set(
             messages.filter((m) => m.turn_id).map((m) => `${m.turn_id} ${m.role}`))
@@ -137,7 +179,8 @@ export const useStore = create<StoreState>()(
           const extras = existing.filter((m) =>
             !ids.has(m.id) &&
             !(m.turn_id && turnRoles.has(`${m.turn_id} ${m.role}`)) &&
-            !roleTexts.has(`${m.role} ${m.text}`))
+            !roleTexts.has(`${m.role} ${m.text}`) &&
+            (!m.turn_id || streaming.has(m.turn_id)))
           return { threads: { ...state.threads, [caseId]: [...messages, ...extras] } }
         }),
 
@@ -299,17 +342,41 @@ export const useStore = create<StoreState>()(
               })
             }
           }
-          // Do NOT mark a mid-stream turn as interrupted on reload. The server
-          // turn keeps running across an SSE disconnect — ONLY Stop/Rewind
-          // cancels it (server.py sets cancel_in_flight) — and SSE
+          // Do NOT mark a RECENT mid-stream turn as interrupted on reload. The
+          // server turn keeps running across an SSE disconnect — ONLY
+          // Stop/Rewind cancels it (server.py sets cancel_in_flight) — and SSE
           // replay-on-reconnect resumes it when the page reconnects. So an
           // accidental hard-refresh is a no-op: leave streaming turns as-is and
           // let the replayed + live events bring them to 'done' (or a real
-          // server error). Falsely flipping them to "interrupted (session
-          // closed)" here would interrupt work the user didn't mean to stop.
-          // (Edge: if the server itself restarted while away, the turn is gone
-          // and will show 'streaming' until the next question — acceptable and
-          // rare, and far better than interrupting every accidental refresh.)
+          // server error). Falsely flipping them here would interrupt work the
+          // user didn't mean to stop.
+          //
+          // But an OLD one is a different case, and this note used to call it
+          // "acceptable and rare". A redeploy makes it neither: every turn in
+          // flight when the process died is stranded, and because nothing ever
+          // resolves it the question sits on "Working on it…" indefinitely —
+          // in one person's browser and no one else's, which is a confusing
+          // thing to debug. The server's own turn budget (`TURN_WALL_CLOCK_S`,
+          // 360s) bounds how long a live turn can possibly last, so past that
+          // plus a margin the owning process is provably gone. Say so instead
+          // of pretending it is still working.
+          for (const cid of Object.keys(turns ?? {})) {
+            const list = turns[cid]
+            if (!Array.isArray(list)) continue
+            for (const t of list) {
+              if (!t || t.status !== 'streaming') continue
+              const age = Date.now() - (t.started_at ?? 0)
+              // `started_at` is epoch ms from the server. A missing or absurd
+              // value reads as very old; that is the safe direction, since the
+              // alternative is a ghost that never clears.
+              if (age < STALE_STREAMING_MS) continue
+              t.status = 'error'
+              t.errorKind = 'interrupted'
+              t.error = 'Interrupted — the server restarted while this turn '
+                + 'was running. Ask again to retry.'
+              t.outcome = 'aborted'
+            }
+          }
           return parsed
         },
         setItem: (name, value) => {

@@ -133,6 +133,8 @@ export type ChartInfo = {
    *    - `table`: absent — see `numbers` / `x_field` / `y_fields` below.
    */
   vega_spec?: Record<string, unknown> | null
+  /** ChartInfo.kind — drives the card's type glyph. */
+  chart_kind?: string | null
   /** `kind === "table"` payload extras. Each entry in `numbers` is one row;
    *  `x_field` is the leftmost column header; `y_fields` lists the rest of
    *  the columns in display order. Undefined for non-table charts. */
@@ -247,4 +249,112 @@ export type StoreState = {
     key: { specialist: string; topic: string },
   ) => void
   setActiveTurn: (caseId: string, turnId: string | null) => void
+}
+
+// ── Case report (journey UI) ──────────────────────────────────────────────
+// Mirrors AgenticSys_v2/server.py:get_report, which builds these from
+// tools/fs_tools.py:list_report_sections.
+
+export type ReportSection = {
+  /** Domain prefix, e.g. `executive_summary`. Stable across `_exp_N` bumps. */
+  key: string
+  /** Reviewer-facing tab label, e.g. "Exec Summary". */
+  label: string
+  /** Source file on disk, or null when this case has no such report. */
+  filename: string | null
+  /** Section body. Null means the section is absent — render it as
+   *  unavailable rather than hiding the tab, so a missing report is
+   *  visible to the reviewer instead of silently narrowing the strip. */
+  markdown: string | null
+  /** Figures the reviewer inserted into this section. Kept alongside the
+   *  markdown rather than spliced into it — the markdown is the report
+   *  agent's source text, and rewriting it would change what the agent
+   *  reads on the next turn. */
+  figures: Pin[]
+}
+
+export type CaseReport = {
+  case_id: string
+  /** Newest file mtime across the sections, `YYYY-MM-DD`, or null.
+   *  NOT a generation date — the reports carry no stamp of their own and
+   *  a sync/copy rewrites mtime. Shown as "Updated", never "Generated". */
+  updated_at: string | null
+  sections: ReportSection[]
+}
+
+// ── Pins / opportunities ──────────────────────────────────────────────────
+// Mirrors AgenticSys_v2/datalayer/pin_store.py.
+
+export type PinKind = 'insight' | 'figure'
+
+export type Pin = {
+  pin_id: string
+  kind: PinKind
+  /** The claim, for an insight pin. Empty for figures. */
+  text: string
+  // Provenance — a pin the reviewer cannot trace back to its turn or report
+  // section is an unsourced assertion, which is the opposite of the point.
+  turn_id: string | null
+  turn_index: number | null
+  /** Human-readable origin, e.g. "spending & payment specialist" or
+   *  "Report · Exec Sum". */
+  source: string
+  // figure pins only
+  specialist: string | null
+  topic: string | null
+  chart_url: string | null
+  /** Vega-Lite spec captured at pin time. The durable copy of the figure —
+   *  it carries its data inline, so it survives the chart PNG being deleted
+   *  (rewind does that). Preferred over `chart_url` when rendering. */
+  vega_spec?: Record<string, unknown> | null
+  /** ChartInfo.kind — drives the card's type glyph. */
+  chart_kind?: string | null
+  /** The question that produced this pin. STABLE provenance — unlike
+   *  `turn_index`, which is positional and renumbers when an earlier turn is
+   *  rewound, so a pin captured as "Turn 3" starts pointing at a different
+   *  turn. Prefer this for display. */
+  question?: string | null
+  /** True once the pin's turn has been rewound. The pin is kept, but must
+   *  not be presented as current, and is excluded from report sections. */
+  retracted?: boolean
+  /** Report section this pin has been inserted into, or null. */
+  section_key: string | null
+  created_at: number
+}
+
+export type Opportunity = {
+  opp_id: string
+  title: string
+  body: string
+  /** Pins this was synthesised from — backs the "from 2 pins" chip. */
+  pin_ids: string[]
+  created_at: number
+}
+
+// ── Synthesis / overview ──────────────────────────────────────────────────
+
+export type SynthesisMode = 'story' | 'opportunities'
+
+export type ProposedOpportunity = { title: string; rationale: string }
+
+export type PinSynthesis = {
+  mode: SynthesisMode
+  /** Filled in `story` mode, empty in `opportunities` mode. */
+  story: string
+  opportunities: ProposedOpportunity[]
+  /** What the pins do NOT establish. Always rendered — a synthesis a
+   *  reviewer has to defend downstream is worse without its own caveats. */
+  not_settled: string[]
+  pin_ids: string[]
+}
+
+export type CaseOverviewRow = {
+  case_id: string
+  /** Newest report-file mtime, `YYYY-MM-DD`, or null when the case has none. */
+  report_updated_at: string | null
+  report_sections: number
+  /** ISO timestamp of the last question asked, or null if never opened. */
+  last_qa_at: string | null
+  turns: number
+  pins: number
 }

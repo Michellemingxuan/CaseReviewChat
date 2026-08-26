@@ -1,0 +1,107 @@
+.wrap { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+.main { flex: 1; min-width: 0; }
+
+.chartHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.chartTitle {
+  font-size: var(--j-fs-meta);
+  font-weight: 700;
+  color: var(--j-ink-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expand {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 7px;
+  background: var(--j-surface-soft);
+  border: 1px solid var(--j-border);
+  color: var(--j-ink-3);
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.expand:hover { border-color: var(--j-accent); color: var(--j-accent-deep); }
+/* Vega needs a DEFINITE height here, not `min-height`.
+   `VegaChart`'s wrapper is `height: 100%`, which resolves against the
+   parent's HEIGHT — and `min-height` leaves that computed height `auto`,
+   so the percentage resolves to zero and vega embeds a ~14px-tall chart
+   that never recovers. A fixed height is right for a card that grows with
+   its content anyway; the classic PlotPanel gets away with `100%` only
+   because it sits in a grid cell that already has a definite height. */
+.chartBox { height: 300px; width: 100%; }
+/* PNG fallback has intrinsic height, so let it size itself. */
+.chartBox:has(> .png) { height: auto; }
+.png { max-width: 100%; height: auto; display: block; }
+
+.caption {
+  margin-top: 8px;
+  font-size: var(--j-fs-micro);
+  color: var(--j-ink-4);
+  line-height: 1.5;
+}
+.empty {
+  color: var(--j-ink-4);
+  font-size: var(--j-fs-sm);
+  padding: 20px 0;
+}
+
+/* ── thumbnail rail ─────────────────────────────────────────────────── */
+.rail { display: flex; flex-direction: column; gap: 8px; width: 104px; flex-shrink: 0; }
+.thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: var(--j-surface-soft);
+  border: 1px solid var(--j-border);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 46px;
+}
+.thumbActive { background: #EAF5FD; border-color: var(--j-accent-line); }
+.thumbPending { opacity: 0.6; cursor: default; }
+.thumbLabel {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--j-accent-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.thumbActive .thumbLabel { color: var(--j-accent-deep); }
+.thumb:not(.thumbActive) .thumbLabel { color: var(--j-ink-4); }
+.thumbTopic {
+  font-size: 9.5px;
+  color: var(--j-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Per-figure pin sits beside Enlarge — both act on the figure on screen. */
+.pinFig {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 7px;
+  background: #FFF8EC;
+  border: 1px solid #F3D9A6;
+  color: var(--j-warn-accent);
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pinFig:not(:disabled):hover { border-color: var(--j-warn-accent); }
+.pinFig:disabled { opacity: 0.5; cursor: not-allowed; }
+.chartHead .pinFig { margin-left: auto; }
+.chartHead .expand { margin-left: 0; }

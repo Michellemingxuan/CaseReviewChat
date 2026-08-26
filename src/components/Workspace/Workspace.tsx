@@ -6,6 +6,7 @@ import { ChatPanel } from '../ChatPanel/ChatPanel'
 import { AuditTracePanel } from '../AuditTracePanel/AuditTracePanel'
 import { OrchestrationFlowPanel } from '../OrchestrationFlowPanel/OrchestrationFlowPanel'
 import { PlotPanel } from '../PlotPanel/PlotPanel'
+import { clampLayout, loadLayout, setupResizer } from '../../lib/resizer'
 import s from './Workspace.module.css'
 
 // Bumped v2 → v3 when the right-stack layout changed again: upper is now
@@ -23,25 +24,6 @@ type LayoutSizes = {
 
 /** Which tab is active in the lower (tabbed) section. */
 type LowerTab = 'flow' | 'plots'
-
-function loadLayout(): LayoutSizes {
-  try {
-    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as LayoutSizes) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveLayout(patch: LayoutSizes) {
-  const current = loadLayout()
-  const next = { ...current, ...patch }
-  // Drop empty/undefined keys so a reset truly resets.
-  ;(Object.keys(next) as (keyof LayoutSizes)[]).forEach((k) => {
-    if (!next[k]) delete next[k]
-  })
-  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(next))
-}
 
 /**
  * Clamp persisted layout values against the current viewport. The
@@ -74,34 +56,11 @@ export function clampLayoutToViewport(
   saved: LayoutSizes,
   viewport?: { vw: number; vh: number },
 ): LayoutSizes {
-  const vw = viewport?.vw
-    ?? (typeof window !== 'undefined' ? window.innerWidth : 1920)
-  const vh = viewport?.vh
-    ?? (typeof window !== 'undefined' ? window.innerHeight : 1080)
-  const out: LayoutSizes = { ...saved }
-
-  const parsePx = (v: string | undefined): number | null => {
-    if (!v) return null
-    const m = v.trim().match(/^(\d+(?:\.\d+)?)\s*px$/)
-    return m ? parseFloat(m[1]) : null
-  }
-
-  const sidebar = parsePx(saved['--col-sidebar'])
-  if (sidebar != null && (sidebar < 160 || sidebar > vw * 0.25)) {
-    delete out['--col-sidebar']
-  }
-
-  const chat = parsePx(saved['--col-chat'])
-  if (chat != null && (chat < 480 || chat > vw * 0.7)) {
-    delete out['--col-chat']
-  }
-
-  const rowUpper = parsePx(saved['--row-upper'])
-  if (rowUpper != null && (rowUpper < 220 || rowUpper > vh * 0.75)) {
-    delete out['--row-upper']
-  }
-
-  return out
+  return clampLayout(saved, {
+    '--col-sidebar': { min: 160, maxVw: 0.25 },
+    '--col-chat': { min: 480, maxVw: 0.7 },
+    '--row-upper': { min: 220, maxVh: 0.75 },
+  }, viewport)
 }
 
 /**
@@ -137,7 +96,7 @@ export function Workspace() {
      * window-resize so moving the window across screens at runtime
      * also gracefully re-fits. */
     const applyLayout = () => {
-      const saved = clampLayoutToViewport(loadLayout())
+      const saved = clampLayoutToViewport(loadLayout(LAYOUT_STORAGE_KEY))
       const ws = workspaceRef.current
       const rs = rightStackRef.current
       if (ws) {
@@ -187,6 +146,7 @@ export function Workspace() {
       varName: '--col-sidebar',
       minBefore: 160,
       minAfter: 480 + 4 + 420 + 4,
+      storageKey: LAYOUT_STORAGE_KEY,
     })
     // Chat ↔ right-stack resizer — must reserve room for right column.
     setupResizer({
@@ -196,6 +156,7 @@ export function Workspace() {
       varName: '--col-chat',
       minBefore: 480,
       minAfter: 420,
+      storageKey: LAYOUT_STORAGE_KEY,
     })
     // Upper (trace) ↔ lower (tabbed flow/plots) vertical resizer.
     setupResizer({
@@ -205,6 +166,7 @@ export function Workspace() {
       varName: '--row-upper',
       minBefore: 220,
       minAfter: 220,
+      storageKey: LAYOUT_STORAGE_KEY,
     })
 
     return () => {
@@ -294,61 +256,4 @@ export function Workspace() {
       </div>
     </div>
   )
-}
-
-// ── Resizer plumbing ──────────────────────────────────────────────────────
-
-function setupResizer({
-  handle, container, axis, varName, minBefore, minAfter,
-}: {
-  handle: HTMLElement | null
-  container: HTMLElement | null
-  axis: 'x' | 'y'
-  varName: string
-  minBefore: number
-  minAfter: number
-}) {
-  if (!handle || !container) return
-  let startPos = 0, startSize = 0, containerSize = 0
-
-  const onMove = (e: MouseEvent) => {
-    const pos = axis === 'x' ? e.clientX : e.clientY
-    const delta = pos - startPos
-    const maxSize = containerSize - minAfter - 4
-    let next = startSize + delta
-    next = Math.max(minBefore, Math.min(maxSize, next))
-    container.style.setProperty(varName, `${next}px`)
-  }
-  const onUp = () => {
-    handle.classList.remove('dragging')
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-    // Persist the final value so refresh keeps the user's adjustment.
-    const finalValue = container.style.getPropertyValue(varName)
-    if (finalValue) saveLayout({ [varName]: finalValue } as LayoutSizes)
-  }
-
-  handle.addEventListener('mousedown', (e) => {
-    e.preventDefault()
-    handle.classList.add('dragging')
-    document.body.style.cursor = axis === 'x' ? 'col-resize' : 'row-resize'
-    document.body.style.userSelect = 'none'
-    const cRect = container.getBoundingClientRect()
-    containerSize = axis === 'x' ? cRect.width : cRect.height
-    const before = handle.previousElementSibling as HTMLElement | null
-    if (before) {
-      const bRect = before.getBoundingClientRect()
-      startSize = axis === 'x' ? bRect.width : bRect.height
-    }
-    startPos = axis === 'x' ? e.clientX : e.clientY
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  })
-
-  handle.addEventListener('dblclick', () => {
-    container.style.removeProperty(varName)
-    saveLayout({ [varName]: undefined } as LayoutSizes)
-  })
 }

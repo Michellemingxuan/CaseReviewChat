@@ -1,0 +1,28 @@
+.wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  font-size: 9px;
+  color: var(--j-ink-mute);
+}
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.time { flex-shrink: 0; }
+
+/* Amber, not red: the pin is still there and still yours. It just is not part
+   of the current thread any more, and must not read as though it were. */
+.retracted {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--j-radius-pill);
+  background: var(--j-warn-bg);
+  color: var(--j-warn-ink);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}

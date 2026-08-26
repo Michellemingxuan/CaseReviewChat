@@ -450,3 +450,24 @@
   font-size: 11px;
   color: #8FA3C7;
 }
+
+/* Fold control — only rendered when the shell passes `onCollapse`.
+   Lives in the flex header row on purpose: the journey shell first overlaid
+   this at top-right, where it sat on the "next turn" arrow and ate its
+   clicks, so the trace could only be paged backwards. */
+.foldBtn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #98A6C5;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.foldBtn:hover { background: rgba(255, 255, 255, 0.16); color: #E2EAF7; }

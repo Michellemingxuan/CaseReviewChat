@@ -1,0 +1,13 @@
+.missing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px;
+  border-radius: 6px;
+  background: var(--j-chip);
+  border: 1px dashed var(--j-border-strong);
+  color: var(--j-ink-4);
+  font-size: var(--j-fs-micro);
+  line-height: 1.5;
+}
+.missingIcon { color: var(--j-ink-mute); font-size: 14px; flex-shrink: 0; }

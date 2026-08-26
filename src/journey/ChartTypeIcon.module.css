@@ -1,0 +1,17 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--j-surface);
+  border-radius: 4px;
+  color: var(--j-accent-deep);
+}
+.glyph { display: block; line-height: 0; }
+.label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--j-ink-mute);
+}
